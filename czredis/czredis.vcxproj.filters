@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{570ed637-46e3-4ac0-aa07-84101bfb4d87}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\czredis">
+      <UniqueIdentifier>{06227aea-5577-43dd-99e6-4dde151ff9ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\czredis\detail">
+      <UniqueIdentifier>{00b59783-42fe-4803-84d7-dd8ddaea4401}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\asio.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\common.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\config.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\error.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\redis.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\redis_pool.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\reply.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\client.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\comand.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\pool.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\resp.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\socket.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\stream.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="include\test.cpp">
+      <Filter>include</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
