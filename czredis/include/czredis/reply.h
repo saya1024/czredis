@@ -5,22 +5,16 @@ namespace czredis
 
 class reply
 {
+public:
     using reply_array = std::vector<reply>;
 
-public:
     reply() noexcept :
         type_(reply_type::kNull)
     {
     }
 
-    reply(const rds_string& s) :
-        type_(reply_type::kString),
-        str_(s)
-    {
-    }
-
-    reply(rds_string&& s) noexcept :
-        type_(reply_type::kString),
+    reply(rds_string&& s, bool err = false) :
+        type_(err ? reply_type::kError : reply_type::kString),
         str_(std::move(s))
     {
     }
@@ -31,13 +25,7 @@ public:
     {
     }
 
-    reply(const reply_array& arr) :
-        type_(reply_type::kArray),
-        arr_(arr)
-    {
-    }
-
-    reply(reply_array&& arr) noexcept :
+    reply(reply_array&& arr) :
         type_(reply_type::kArray),
         arr_(std::move(arr))
     {
@@ -64,12 +52,20 @@ public:
     reply& operator=(const reply& r)
     {
         type_ = r.type_;
-        if (r.type_ == reply_type::kString)
+        switch (r.type_)
+        {
+        case reply_type::kString:
+        case reply_type::kError:
             str_ = r.str_;
-        if (r.type_ == reply_type::kInteger)
+            break;
+        case reply_type::kInteger:
             int_ = r.int_;
-        if (r.type_ == reply_type::kArray)
+            break;
+        case reply_type::kArray:
             arr_ = r.arr_;
+            break;
+        }
+        return *this;
     }
 
     reply& operator=(reply&& r) noexcept
@@ -85,7 +81,7 @@ public:
         if (type_ == reply_type::kString)
             return str_;
         else
-            throw std::runtime_error("reply type is not string");
+            throw redis_data_error("reply type is not string");
     }
 
     rds_integer as_integer()
@@ -93,7 +89,7 @@ public:
         if (type_ == reply_type::kInteger)
             return int_;
         else
-            throw std::runtime_error("reply type is not integer");
+            throw redis_data_error("reply type is not integer");
     }
 
     reply_array& as_array()
@@ -101,7 +97,20 @@ public:
         if (type_ == reply_type::kArray)
             return arr_;
         else
-            throw std::runtime_error("reply type is not array");
+            throw redis_data_error("reply type is not array");
+    }
+
+    rds_string& as_error()
+    {
+        if (type_ == reply_type::kError)
+            return str_;
+        else
+            throw redis_data_error("reply type is not error");
+    }
+
+    bool is_null() const noexcept
+    {
+        return type_ == reply_type::kNull;
     }
 
     bool is_string() const noexcept
@@ -119,9 +128,9 @@ public:
         return type_ == reply_type::kArray;
     }
 
-    bool is_null() const noexcept
+    bool is_error() const noexcept
     {
-        return type_ == reply_type::kNull;
+        return type_ == reply_type::kError;
     }
 
     reply_type type() const noexcept
@@ -129,39 +138,14 @@ public:
         return type_;
     }
 
-    void set_null() noexcept
+    bool is_ok()
     {
-        type_ = reply_type::kNull;
+        return is_string() && str_ == "OK";
     }
 
-    void set_string(const rds_string& s)
+    bool is_pong()
     {
-        type_ = reply_type::kString;
-        str_ = s;
-    }
-
-    void set_string(rds_string&& s) noexcept
-    {
-        type_ = reply_type::kString;
-        str_ = std::move(s);
-    }
-
-    void set_integer(rds_integer i) noexcept
-    {
-        type_ = reply_type::kInteger;
-        int_ = i;
-    }
-
-    void set_array(const reply_array& arr)
-    {
-        type_ = reply_type::kArray;
-        arr_ = arr;
-    }
-
-    void set_array(reply_array&& arr) noexcept
-    {
-        type_ = reply_type::kArray;
-        arr_ = std::move(arr);
+        return is_string() && str_ == "PONG";
     }
 
 private:

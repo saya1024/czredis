@@ -43,7 +43,7 @@ public:
         is_connected_ = true;
     }
 
-    void disconnect() noexcept
+    virtual void disconnect() noexcept
     {
         if (is_connected_)
         {

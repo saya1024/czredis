@@ -1,7 +1,5 @@
 #pragma once
 
-#include <system_error>
-
 namespace czredis
 {
 
@@ -26,6 +24,15 @@ class redis_commmand_error : public redis_error
 public:
     explicit redis_commmand_error(const std::string& msg) :
         redis_error("Redis commmand error: " + msg)
+    {
+    }
+};
+
+class redis_data_error : public redis_error
+{
+public:
+    explicit redis_data_error(const std::string& msg) :
+        redis_error("Redis reply error: " + msg)
     {
     }
 };

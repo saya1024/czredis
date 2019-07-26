@@ -12,20 +12,26 @@ namespace detail
 template<typename T>
 class pool : private asio::noncopyable
 {
+public:
     using unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
     using unique_lock = std::unique_lock<std::mutex>;
 
-public:
     pool(size_t max_size, size_t max_idle) :
         max_size_(max_size),
         max_idle_(max_idle)
     {
     }
 
-    virtual ~pool()
+    virtual ~pool() noexcept
     {
-        unique_lock lock(mtx_);
-        cv_.wait(lock, [this] { return used_count_ == 0; });
+        try
+        {
+            unique_lock lock(mtx_);
+            cv_.wait(lock, [this] { return used_count_ == 0; });
+        }
+        catch (const std::exception&)
+        {
+        }
         for (auto obj : pool_)
         {
             delete obj;

@@ -30,6 +30,7 @@
     <ClInclude Include="include\czredis\detail\socket.h" />
     <ClInclude Include="include\czredis\detail\stream.h" />
     <ClInclude Include="include\czredis\error.h" />
+    <ClInclude Include="include\czredis\pipeline.h" />
     <ClInclude Include="include\czredis\redis.h" />
     <ClInclude Include="include\czredis\redis_pool.h" />
     <ClInclude Include="include\czredis\reply.h" />

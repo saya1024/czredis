@@ -25,15 +25,18 @@ public:
     {
     }
 
-    void send_command(const rds_string& command_crlf, const string_array& args)
+    void send_command(cref_string command, init_strings args)
     {
         rds_string char_num_crlf = kSymbolOfArray + std::to_string(args.size() + 1) + "\r\n";
         stream_.write_string(char_num_crlf);
-        stream_.write_string(command_crlf);
+
+        char_num_crlf = kSymbolOfBulkString + std::to_string(command.size()) + "\r\n";
+        stream_.write_string(char_num_crlf);
+        stream_.write_string(command);
+        stream_.write_crlf();
 
         for (auto& arg : args)
         {
-            char_num_crlf.clear();
             char_num_crlf = kSymbolOfBulkString + std::to_string(arg.size()) + "\r\n";
             stream_.write_string(char_num_crlf);
             stream_.write_string(arg);
@@ -41,7 +44,7 @@ public:
         }
     }
 
-    reply get_reply()
+    reply read_reply()
     {
         return parse();
     }
@@ -76,7 +79,7 @@ private:
 
     reply parse_error()
     {
-        throw redis_commmand_error(stream_.read_string_crlf());
+        return { stream_.read_string_crlf(), true };
     }
 
     reply parse_integer()

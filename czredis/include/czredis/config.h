@@ -6,7 +6,7 @@ namespace czredis
 {
 
 struct redis_config {
-    std::string password                = "";
+    rds_string  password                = "";
     unsigned    database                = 0;
     unsigned    connect_timeout         = 1000;
     unsigned    socket_read_timeout     = 200;
@@ -15,7 +15,7 @@ struct redis_config {
 
 struct redis_pool_config : redis_config
 {
-    std::string name        = "";
+    rds_string  name        = "";
     size_t      max_size    = 100;
     size_t      max_idle    = 20;
 };

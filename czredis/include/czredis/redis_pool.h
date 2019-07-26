@@ -21,7 +21,7 @@ public:
     {
     }
 
-    virtual ~redis_pool() override
+    virtual ~redis_pool() noexcept override
     {
     };
 
