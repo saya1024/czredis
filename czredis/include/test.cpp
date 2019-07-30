@@ -192,13 +192,12 @@ static void threadFunc1(int num)
 //
 void testHost()
 {
-    redis rds("192.168.1.209", "10068");
+    redis rds;
 
     try
     {
         rds.connect();
         //cout << obj.SendCommand({ "AUTH", "ldadgf4g65hh10068" }).as_string() << endl;
-        auto b = rds.auth("ldadgf4g65hh10068");
         rds.disconnect();
         //cout << rds.SendCommand({ "get", "name" }).as_string() << endl;
         //cout << obj.SendCommand({ "AUTH", "12345678" }).as_string() << endl;

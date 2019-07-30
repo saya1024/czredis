@@ -25,9 +25,10 @@ public:
     {
     }
 
-    void send_command(cref_string command, init_strings args)
+    template<class STRINGS>
+    void send_command(cref_string command, STRINGS params1, STRINGS params2)
     {
-        rds_string char_num_crlf = kSymbolOfArray + std::to_string(args.size() + 1) + "\r\n";
+        rds_string char_num_crlf = kSymbolOfArray + std::to_string(params1.size() + params2.size() + 1) + "\r\n";
         stream_.write_string(char_num_crlf);
 
         char_num_crlf = kSymbolOfBulkString + std::to_string(command.size()) + "\r\n";
@@ -35,11 +36,18 @@ public:
         stream_.write_string(command);
         stream_.write_crlf();
 
-        for (auto& arg : args)
+        for (auto& param : params1)
         {
-            char_num_crlf = kSymbolOfBulkString + std::to_string(arg.size()) + "\r\n";
+            char_num_crlf = kSymbolOfBulkString + std::to_string(param.size()) + "\r\n";
             stream_.write_string(char_num_crlf);
-            stream_.write_string(arg);
+            stream_.write_string(param);
+            stream_.write_crlf();
+        }
+        for (auto& param : params2)
+        {
+            char_num_crlf = kSymbolOfBulkString + std::to_string(param.size()) + "\r\n";
+            stream_.write_string(char_num_crlf);
+            stream_.write_string(param);
             stream_.write_crlf();
         }
     }
