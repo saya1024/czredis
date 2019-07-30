@@ -22,25 +22,19 @@ public:
     bool discard_and_reply()
     {
         discard();
-        for (auto& r : read_results())
-        {
-            if (r.is_error())
-                return false;
-        }
-        return true;
+        return read_results().back().is_ok();
     }
 
     bool exec_and_reply(reply_array& results)
     {
         exec();
-        auto arr = read_results();
-        for (auto& r : arr)
+        auto r = read_results().back();
+        if (r.is_array())
         {
-            if (r.is_error())
-                return false;
+            results = std::move(r.as_array());
+            return true;
         }
-        results = arr.back().as_array();
-        return true;
+        return false;
     }
 
     bool is_in_multi() const noexcept

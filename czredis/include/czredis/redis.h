@@ -59,7 +59,7 @@ public:
     bool auth(cref_string password)
     {
         client_.auth(password);
-        read_reply().is_ok();
+        return read_reply().is_ok();
     }
 
     rds_string echo(cref_string message)
@@ -92,7 +92,7 @@ private:
 
     reply read_reply()
     {
-        client_.read_reply();
+        return client_.read_reply();
     }
 };
 

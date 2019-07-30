@@ -22,8 +22,8 @@ void sleep(int millis)
     this_thread::sleep_for(dura);
 }
 
-template<typename F, typename ...T>
-void testTime(F func, T ...args)
+template<typename F, typename ...OBJECT>
+void testTime(F func, OBJECT ...args)
 {
     auto start = system_clock::now();
     func(args...);
@@ -119,7 +119,7 @@ static void threadFunc1(int num)
         //redis.Connect();
         for (int i = 0; i < 100; i++)
         {
-            auto redis = pool->GetRedis();
+            auto redis = pool->get_redis();
             //redis.SendCommand({ "SET", "name", "zyc" });
         }
     }
@@ -190,25 +190,24 @@ static void threadFunc1(int num)
 //    }
 //}
 //
-//void testHost()
-//{
-//    //Redis obj("192.168.1.209", 10068);
-//
-//    redis_pool pool("47.100.250.142", 6379);
-//    redis rds(pool.GetRedis());
-//    try
-//    {
-//        rds.Connect();
-//        //cout << obj.SendCommand({ "AUTH", "ldadgf4g65hh10068" }).as_string() << endl;
-//        cout << rds.SendCommand({ "PING" }).as_string() << endl;
-//        cout << rds.SendCommand({ "get", "name" }).as_string() << endl;
-//        //cout << obj.SendCommand({ "AUTH", "12345678" }).as_string() << endl;
-//    }
-//    catch (const exception& e)
-//    {
-//        cout << e.what() << endl;
-//    }
-//}
+void testHost()
+{
+    redis rds("192.168.1.209", "10068");
+
+    try
+    {
+        rds.connect();
+        //cout << obj.SendCommand({ "AUTH", "ldadgf4g65hh10068" }).as_string() << endl;
+        auto b = rds.auth("ldadgf4g65hh10068");
+        rds.disconnect();
+        //cout << rds.SendCommand({ "get", "name" }).as_string() << endl;
+        //cout << obj.SendCommand({ "AUTH", "12345678" }).as_string() << endl;
+    }
+    catch (const exception& e)
+    {
+        cout << e.what() << endl;
+    }
+}
 
 int main()
 {
@@ -217,7 +216,7 @@ int main()
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
     //_CrtSetBreakAlloc(287);
-    //testHost();
+    testHost();
     //testRedisPool();
     //testBinary();
     //testTime(testCmd);

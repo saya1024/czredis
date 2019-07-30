@@ -2,39 +2,34 @@
 
 #include <mutex>
 #include <list>
-//#include "error.h"
+#include "allocated_queue.h"
 
 namespace czredis
 {
 namespace detail
 {
 
-template<typename T>
+template<class OBJ>
 class pool : private asio::noncopyable
 {
 public:
-    using unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
+    using unique_ptr = std::unique_ptr<OBJ, std::function<void(OBJ*)>>;
     using unique_lock = std::unique_lock<std::mutex>;
 
     pool(size_t max_size, size_t max_idle) :
         max_size_(max_size),
-        max_idle_(max_idle)
+        max_idle_(max_idle),
+        pool_(max_size)
     {
     }
 
     virtual ~pool() noexcept
     {
-        try
+        unique_lock lock(mtx_);
+        cv_.wait(lock, [this] { return used_count_ == 0; });
+        while (!pool_.empty())
         {
-            unique_lock lock(mtx_);
-            cv_.wait(lock, [this] { return used_count_ == 0; });
-        }
-        catch (const std::exception&)
-        {
-        }
-        for (auto obj : pool_)
-        {
-            delete obj;
+            delete_object(pool_.pop_front());
         }
     }
 
@@ -52,7 +47,7 @@ protected:
     unique_ptr borrow_object()
     {
         unique_lock lock(mtx_);
-        T* obj = nullptr;
+        OBJ* obj = nullptr;
         if (used_count_ + pool_.size() < max_size_)
         {
             ++used_count_;
@@ -62,20 +57,20 @@ protected:
             }
             else
             {
-                obj = pool_.front();
-                pool_.pop_front();
+                obj = pool_.pop_front();
             }
         }
-        return unique_ptr(obj, [this](T* obj) { return_object(obj); });
+        return unique_ptr(obj, [this](OBJ* obj) { return_object(obj); });
     }
 
-    void return_object(T* obj)
+    virtual void return_object(OBJ* obj) noexcept
     {
+        when_return(obj);
         unique_lock lock(mtx_);
         --used_count_;
         if (pool_.size() < max_idle_)
         {
-            pool_.emplace_back(obj);
+            pool_.push_back(std::move(obj));
         }
         if (used_count_ == 0)
         {
@@ -83,7 +78,11 @@ protected:
         }
     }
 
-    virtual T* new_object() = 0;
+    virtual void when_return(OBJ*) noexcept = 0;
+
+    virtual OBJ* new_object() = 0;
+
+    virtual void delete_object(OBJ*) noexcept = 0;
 
 private:
     size_t          max_size_;
@@ -91,7 +90,7 @@ private:
     size_t          used_count_ = 0;
     std::mutex      mtx_;
     std::condition_variable cv_;
-    std::list<T*>   pool_;
+    allocated_queue<OBJ*> pool_;
 };
 
 } // namespace detail

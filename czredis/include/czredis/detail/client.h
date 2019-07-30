@@ -52,6 +52,8 @@ public:
         {
             my_base::disconnect();
             response_count_ = 0;
+            is_in_multi_ = false;
+            is_in_watch_ = false;
         }
     }
 

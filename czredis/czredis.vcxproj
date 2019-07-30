@@ -23,6 +23,7 @@
     <ClInclude Include="include\czredis.h" />
     <ClInclude Include="include\czredis\common.h" />
     <ClInclude Include="include\czredis\config.h" />
+    <ClInclude Include="include\czredis\detail\allocated_queue.h" />
     <ClInclude Include="include\czredis\detail\client.h" />
     <ClInclude Include="include\czredis\detail\comand.h" />
     <ClInclude Include="include\czredis\detail\pool.h" />

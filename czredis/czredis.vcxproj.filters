@@ -57,6 +57,9 @@
     <ClInclude Include="include\czredis\pipeline.h">
       <Filter>include\czredis</Filter>
     </ClInclude>
+    <ClInclude Include="include\czredis\detail\allocated_queue.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="include\test.cpp">

@@ -68,7 +68,7 @@ private:
         case kSymbolOfArray:
             return parse_array();
         default:
-            break;
+            throw redis_connection_error("unexpected symbol");
         }
     }
 

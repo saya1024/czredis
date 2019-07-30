@@ -25,7 +25,7 @@ public:
     {
     };
 
-    redis GetRedis()
+    redis get_redis()
     {
         auto p = borrow_object();
         if (p == nullptr)
@@ -36,9 +36,30 @@ public:
     }
 
 protected:
+    virtual void when_return(client* c) noexcept override
+    {
+        try
+        {
+            if (c->is_in_multi())
+                c->discard();
+            if (c->is_in_watch())
+                c->unwatch();
+            c->read_all_reply();
+        }
+        catch (const std::exception&)
+        {
+            c->disconnect();
+        }
+    }
+
     virtual client* new_object() override
     {
         return new client(host_, port_, redis_config_);
+    }
+
+    virtual void delete_object(client* c) noexcept override
+    {
+        delete c;
     }
 
     std::string  host_;
