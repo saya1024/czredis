@@ -57,7 +57,7 @@ public:
         }
     }
 
-    void send_command(cref_string command, init_strings params1 = {}, init_strings params2 = {})
+    void send_command(cref_string command, init_string_list params1 = {}, init_string_list params2 = {})
     {
         check_connect();
         resp_.send_command(command, params1, params2);
@@ -135,14 +135,22 @@ public:
         send_command(cmd::string::APPEND, { value });
     }
 
-    virtual void bitcount(cref_string key, rds_integer start, rds_integer end) override
+    virtual void bitcount(cref_string key, czint start, czint end) override
     {
         send_command(cmd::string::BITCOUNT, { key, std::to_string(start), std::to_string(end) });
     }
 
-    virtual void bitop(cref_string operation, cref_string dest_key, init_strings keys) override
+    virtual void bitop(cref_string operation, cref_string dest_key, init_string_list keys) override
     {
-        send_command(cmd::string::BITOP, { operation, dest_key }, keys);
+        czstring temp = operation;
+        std::transform(temp.cbegin(), temp.cend(), temp.begin(), std::toupper);
+        if (temp != "AND" && temp != "OR" && temp != "XOR" && temp != "NOT")
+            throw redis_commmand_error("ERR syntax error");
+        if (keys.size() == 0)
+            throw redis_commmand_error("ERR wrong number of arguments for 'bitop' command");
+        if (temp == "NOT" && keys.size() > 1)
+            throw redis_commmand_error("ERR BITOP NOT must be called with a single source key");
+        send_command(cmd::string::BITOP, { temp, dest_key }, keys);
     }
 
     virtual void decr(cref_string key) override
@@ -150,7 +158,7 @@ public:
         send_command(cmd::string::DECR, { key });
     }
 
-    virtual void decrby(cref_string key, rds_integer decrement) override
+    virtual void decrby(cref_string key, czint decrement) override
     {
         send_command(cmd::string::DECRBY, { key, std::to_string(decrement) });
     }
@@ -160,12 +168,14 @@ public:
         send_command(cmd::string::GET, { key });
     }
 
-    virtual void getbit(cref_string key, rds_integer offset) override
+    virtual void getbit(cref_string key, czint offset) override
     {
+        if (offset < 0)
+            throw redis_commmand_error("ERR bit offset is not an integer or out of range");
         send_command(cmd::string::GETBIT, { key, std::to_string(offset) });
     }
 
-    virtual void getrange(cref_string key, rds_integer start, rds_integer end) override
+    virtual void getrange(cref_string key, czint start, czint end) override
     {
         send_command(cmd::string::GETRANGE, { key, std::to_string(start), std::to_string(end) });
     }
@@ -180,7 +190,7 @@ public:
         send_command(cmd::string::INCR, { key });
     }
 
-    virtual void incrby(cref_string key, rds_integer increment)
+    virtual void incrby(cref_string key, czint increment)
     {
         send_command(cmd::string::INCRBY, { key, std::to_string(increment) });
     }
@@ -190,38 +200,50 @@ public:
         send_command(cmd::string::INCRBYFLOAT, { key, std::to_string(increment) });
     }
 
-    virtual void mget(init_strings keys) override
+    virtual void mget(init_string_list keys) override
     {
+        if (keys.size() == 0)
+            throw redis_commmand_error("ERR wrong number of arguments for 'mget' command");
         send_command(cmd::string::MGET, keys);
     }
 
-    virtual void mset(init_strings key_value_pairs) override
+    virtual void mset(init_string_list key_value_pairs) override
     {
+        if (key_value_pairs.size() == 0 || key_value_pairs.size() % 2 != 0)
+            throw redis_commmand_error("ERR wrong number of arguments for 'mset' command");
         send_command(cmd::string::MSET, key_value_pairs);
     }
 
-    virtual void msetnx(init_strings key_value_pairs) override
+    virtual void msetnx(init_string_list key_value_pairs) override
     {
+        if (key_value_pairs.size() == 0 || key_value_pairs.size() % 2 != 0)
+            throw redis_commmand_error("ERR wrong number of arguments for 'msetnx' command");
         send_command(cmd::string::MSETNX, key_value_pairs);
     }
 
-    virtual void psetex(cref_string key, rds_integer milliseconds, cref_string value) override
+    virtual void psetex(cref_string key, czint milliseconds, cref_string value) override
     {
+        if (milliseconds <= 0)
+            throw redis_commmand_error("ERR invalid expire time in psetex");
         send_command(cmd::string::PSETEX, { key, std::to_string(milliseconds), value });
     }
 
-    virtual void set(cref_string key, cref_string value, init_strings params = {}) override
+    virtual void set(cref_string key, cref_string value, init_string_list params = {}) override
     {
+        if (params.size() == 0)
+            throw redis_commmand_error("ERR wrong number of arguments for 'set' command");
         send_command(cmd::string::SET, { key, value }, params);
     }
 
-    virtual void setbit(cref_string key, rds_integer offset, bool value) override
+    virtual void setbit(cref_string key, czint offset, czbit bit) override
     {
-        send_command(cmd::string::SETBIT, { key, std::to_string(offset), (value ? "1" : "0") });
+        send_command(cmd::string::SETBIT, { key, std::to_string(offset), (bit ? "1" : "0") });
     }
 
-    virtual void setex(cref_string key, rds_integer seconds, cref_string value) override
+    virtual void setex(cref_string key, czint seconds, cref_string value) override
     {
+        if (seconds <= 0)
+            throw redis_commmand_error("ERR invalid expire time in setex");
         send_command(cmd::string::SETEX, { key, std::to_string(seconds), value });
     }
 
@@ -230,8 +252,10 @@ public:
         send_command(cmd::string::SETNX, { key, value });
     }
 
-    virtual void setrange(cref_string key, rds_integer offset, cref_string value) override
+    virtual void setrange(cref_string key, czint offset, cref_string value) override
     {
+        if (offset < 0)
+            throw redis_commmand_error("ERR offset is out of range");
         send_command(cmd::string::SETRANGE, { key, std::to_string(offset), value });
     }
 
@@ -276,8 +300,10 @@ public:
         is_in_watch_ = false;
     }
 
-    virtual void watch(init_strings keys) override
+    virtual void watch(init_string_list keys) override
     {
+        if (keys.size() == 0)
+            throw redis_commmand_error("ERR wrong number of arguments for 'watch' command");
         send_command(cmd::transaction::WATCH, keys);
         is_in_watch_ = true;
     }
@@ -285,7 +311,7 @@ public:
 private:
     std::string     host_;
     std::string     port_;
-    rds_string      password_;
+    czstring      password_;
     unsigned        database_;
     bool            is_in_multi_ = false;
     bool            is_in_watch_ = false;

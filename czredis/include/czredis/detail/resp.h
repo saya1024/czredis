@@ -25,10 +25,9 @@ public:
     {
     }
 
-    template<class STRINGS>
-    void send_command(cref_string command, STRINGS params1, STRINGS params2)
+    void send_command(cref_string command, init_string_list params1, init_string_list params2)
     {
-        rds_string char_num_crlf = kSymbolOfArray + std::to_string(params1.size() + params2.size() + 1) + "\r\n";
+        czstring char_num_crlf = kSymbolOfArray + std::to_string(params1.size() + params2.size() + 1) + "\r\n";
         stream_.write_string(char_num_crlf);
 
         char_num_crlf = kSymbolOfBulkString + std::to_string(command.size()) + "\r\n";
@@ -76,7 +75,7 @@ private:
         case kSymbolOfArray:
             return parse_array();
         default:
-            throw redis_connection_error("unexpected symbol");
+            throw redis_connection_error("unknown reply");
         }
     }
 
@@ -101,7 +100,7 @@ private:
         if (num < 0)
             return reply();
         if (num == 0)
-            return rds_string("");
+            return czstring("");
 
         auto size = integer_to_size(num);
         return stream_.read_string_crlf(size);
@@ -128,10 +127,10 @@ private:
         return arr;
     }
 
-    size_t integer_to_size(rds_integer num)
+    size_t integer_to_size(czint num)
     {
         auto size = static_cast<size_t>(num);
-        if (static_cast<rds_integer>(size) != num)
+        if (static_cast<czint>(size) != num)
             throw std::overflow_error("resp::integer_to_size overflow");
         return size;
     }

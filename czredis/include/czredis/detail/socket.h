@@ -54,7 +54,7 @@ public:
         }
     }
 
-    size_t write(const rds_string& buf)
+    size_t write(const czstring& buf)
     {
         size_t ret = 0;
         if (write_timeout_ > 0)
@@ -102,7 +102,7 @@ public:
         return ret;
     }
 
-    size_t read(rds_string& buf, size_t read_size)
+    size_t read(czstring& buf, size_t read_size)
     {
         size_t ret = 0;
         if (read_timeout_ > 0)

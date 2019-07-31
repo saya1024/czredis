@@ -11,8 +11,8 @@ class pipeline : public detail::command_interface
     friend class redis;
 
 public:
-    using cref_string = const rds_string&;
-    using init_strings = std::initializer_list<rds_string>;
+    using cref_string = const czstring&;
+    using init_strings = std::initializer_list<czstring>;
 
     reply_array read_results()
     {
@@ -80,7 +80,7 @@ public:
         client_.append(key, value);
     }
 
-    virtual void bitcount(cref_string key, rds_integer start, rds_integer end) override
+    virtual void bitcount(cref_string key, czint start, czint end) override
     {
         client_.bitcount(key, start, end);
     }
@@ -95,7 +95,7 @@ public:
         client_.decr(key);
     }
 
-    virtual void decrby(cref_string key, rds_integer decrement) override
+    virtual void decrby(cref_string key, czint decrement) override
     {
         client_.decrby(key, decrement);
     }
@@ -105,12 +105,12 @@ public:
         client_.get(key);
     }
 
-    virtual void getbit(cref_string key, rds_integer offset) override
+    virtual void getbit(cref_string key, czint offset) override
     {
         client_.getbit(key, offset);
     }
 
-    virtual void getrange(cref_string key, rds_integer start, rds_integer end) override
+    virtual void getrange(cref_string key, czint start, czint end) override
     {
         client_.getrange(key, start, end);
     }
@@ -125,7 +125,7 @@ public:
         client_.incr(key);
     }
 
-    virtual void incrby(cref_string key, rds_integer increment)
+    virtual void incrby(cref_string key, czint increment)
     {
         client_.incrby(key, increment);
     }
@@ -150,7 +150,7 @@ public:
         client_.mset(key_value_pairs);
     }
 
-    virtual void psetex(cref_string key, rds_integer milliseconds, cref_string value) override
+    virtual void psetex(cref_string key, czint milliseconds, cref_string value) override
     {
         client_.psetex(key, milliseconds, value);
     }
@@ -160,12 +160,12 @@ public:
         client_.set(key, value, params);
     }
 
-    virtual void setbit(cref_string key, rds_integer offset, bool value) override
+    virtual void setbit(cref_string key, czint offset, czbit bit) override
     {
-        client_.setbit(key, offset, value);
+        client_.setbit(key, offset, bit);
     }
 
-    virtual void setex(cref_string key, rds_integer seconds, cref_string value) override
+    virtual void setex(cref_string key, czint seconds, cref_string value) override
     {
         client_.setex(key, seconds, value);
     }
@@ -175,7 +175,7 @@ public:
         client_.setnx(key, value);
     }
 
-    virtual void setrange(cref_string key, rds_integer offset, cref_string value) override
+    virtual void setrange(cref_string key, czint offset, cref_string value) override
     {
         client_.setrange(key, offset, value);
     }

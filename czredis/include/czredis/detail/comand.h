@@ -67,26 +67,26 @@ struct command_interface
     virtual void select(unsigned db) = 0;
 
     virtual void append(cref_string key, cref_string value) = 0;
-    virtual void bitcount(cref_string key, rds_integer start, rds_integer end) = 0;
-    virtual void bitop(cref_string operation, cref_string dest_key, init_strings keys) = 0;
+    virtual void bitcount(cref_string key, czint start, czint end) = 0;
+    virtual void bitop(cref_string operation, cref_string dest_key, init_string_list keys) = 0;
     virtual void decr(cref_string key) = 0;
-    virtual void decrby(cref_string key, rds_integer decrement) = 0;
+    virtual void decrby(cref_string key, czint decrement) = 0;
     virtual void get(cref_string key) = 0;
-    virtual void getbit(cref_string key, rds_integer offset) = 0;
-    virtual void getrange(cref_string key, rds_integer start, rds_integer end) = 0;
+    virtual void getbit(cref_string key, czint offset) = 0;
+    virtual void getrange(cref_string key, czint start, czint end) = 0;
     virtual void getset(cref_string key, cref_string value) = 0;
     virtual void incr(cref_string key) = 0;
-    virtual void incrby(cref_string key, rds_integer increment) = 0;
+    virtual void incrby(cref_string key, czint increment) = 0;
     virtual void incrbyfloat(cref_string key, double increment) = 0;
-    virtual void mget(init_strings keys) = 0;
-    virtual void mset(init_strings key_value_pairs) = 0;
-    virtual void msetnx(init_strings key_value_pairs) = 0;
-    virtual void psetex(cref_string key, rds_integer milliseconds, cref_string value) = 0;
-    virtual void set(cref_string key, cref_string value, init_strings params) = 0;
-    virtual void setbit(cref_string key, rds_integer offset, bool value) = 0;
-    virtual void setex(cref_string key, rds_integer seconds, cref_string value) = 0;
+    virtual void mget(init_string_list keys) = 0;
+    virtual void mset(init_string_list key_value_pairs) = 0;
+    virtual void msetnx(init_string_list key_value_pairs) = 0;
+    virtual void psetex(cref_string key, czint milliseconds, cref_string value) = 0;
+    virtual void set(cref_string key, cref_string value, init_string_list params) = 0;
+    virtual void setbit(cref_string key, czint offset, czbit bit) = 0;
+    virtual void setex(cref_string key, czint seconds, cref_string value) = 0;
     virtual void setnx(cref_string key, cref_string value) = 0;
-    virtual void setrange(cref_string key, rds_integer offset, cref_string value) = 0;
+    virtual void setrange(cref_string key, czint offset, cref_string value) = 0;
     virtual void strlen(cref_string key) = 0;
 
 
@@ -94,7 +94,7 @@ struct command_interface
     virtual void exec() = 0;
     virtual void multi() = 0;
     virtual void unwatch() = 0;
-    virtual void watch(init_strings keys) = 0;
+    virtual void watch(init_string_list keys) = 0;
 };
 
 } // namespace detail

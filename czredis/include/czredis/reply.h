@@ -13,13 +13,13 @@ public:
     {
     }
 
-    reply(rds_string&& s, bool err = false) :
+    reply(czstring&& s, bool err = false) :
         type_(err ? reply_type::kError : reply_type::kString),
         str_(std::move(s))
     {
     }
 
-    reply(rds_integer i) noexcept :
+    reply(czint i) noexcept :
         type_(reply_type::kInteger),
         int_(i)
     {
@@ -76,7 +76,7 @@ public:
         arr_ = std::move(r.arr_);
     }
 
-    rds_string& as_string()
+    czstring& as_string()
     {
         if (type_ == reply_type::kString)
             return str_;
@@ -84,7 +84,7 @@ public:
             throw redis_data_error("reply type is not string");
     }
 
-    rds_integer as_integer()
+    czint as_integer()
     {
         if (type_ == reply_type::kInteger)
             return int_;
@@ -100,7 +100,7 @@ public:
             throw redis_data_error("reply type is not array");
     }
 
-    rds_string& as_error()
+    czstring& as_error()
     {
         if (type_ == reply_type::kError)
             return str_;
@@ -150,8 +150,8 @@ public:
 
 private:
     reply_type  type_;
-    rds_string  str_;
-    rds_integer int_;
+    czstring    str_;
+    czint int_;
     reply_array arr_;
 };
 

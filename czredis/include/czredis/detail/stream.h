@@ -26,14 +26,14 @@ public:
         return buf_[begin_++];
     }
 
-    rds_integer read_integer_crlf()
+    czint read_integer_crlf()
     {
         ensure_fill();
         bool is_neg = buf_[begin_] == '-';
         if (is_neg)
             ++begin_;
 
-        rds_integer value = 0;
+        czint value = 0;
         while (true)
         {
             ensure_fill();
@@ -54,9 +54,9 @@ public:
         return is_neg ? -value : value;
     }
 
-    rds_string read_string_crlf()
+    czstring read_string_crlf()
     {
-        rds_string s;
+        czstring s;
         while (true)
         {
             ensure_fill();
@@ -75,9 +75,9 @@ public:
         }
     }
 
-    rds_string read_string_crlf(size_t read_size)
+    czstring read_string_crlf(size_t read_size)
     {
-        rds_string s;
+        czstring s;
         if (read_size > s.capacity())
         {
             s.reserve(read_size);
@@ -108,7 +108,7 @@ public:
             throw redis_connection_error("unexpected end of stream");
     }
 
-    void write_string(const rds_string& s)
+    void write_string(const czstring& s)
     {
         socket_.write(s);
     }
