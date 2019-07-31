@@ -27,13 +27,24 @@ public:
 
     redis get_redis()
     {
-        auto p = borrow_object();
-        if (p == nullptr)
+        auto c = borrow_object();
+        if (c == nullptr)
         {
             throw redis_pool_exhausted_error();
         }
-        p->do_connect();
-        return p;
+        if (c->is_connected())
+        {
+            if (c->database() != config_.database)
+            {
+                c->select(config_.database);
+                c->read_all_reply();
+            }
+        }
+        else
+        {
+            c->do_connect();
+        }
+        return c;
     }
 
 protected:
@@ -41,16 +52,11 @@ protected:
     {
         try
         {
-            if (c->is_connected())
-            {
-                if (c->is_in_multi())
-                    c->discard();
-                if (c->is_in_watch())
-                    c->unwatch();
-                if (c->database() != config_.database)
-                    c->select(config_.database);
-                c->read_all_reply();
-            }
+            if (c->is_in_multi())
+                c->discard();
+            if (c->is_in_watch())
+                c->unwatch();
+            c->read_all_reply();
         }
         catch (const std::exception&)
         {
