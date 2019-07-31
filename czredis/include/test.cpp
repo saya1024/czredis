@@ -14,7 +14,7 @@
 
 using namespace std;
 using namespace chrono;
-using namespace czredis;
+//using namespace czredis;
 
 void sleep(int millis)
 {
@@ -109,7 +109,7 @@ void testTime(F func, OBJECT ...args)
 //}
 //
 //
-static redis_pool *pool = nullptr;
+static czredis::redis_pool *pool = nullptr;
 
 static void threadFunc1(int num)
 {
@@ -192,15 +192,13 @@ static void threadFunc1(int num)
 //
 void testHost()
 {
-    redis rds;
+    czredis::redis rds;
 
     try
     {
         rds.connect();
-        //cout << obj.SendCommand({ "AUTH", "ldadgf4g65hh10068" }).as_string() << endl;
+        cout << rds.get("name").as_string();
         rds.disconnect();
-        //cout << rds.SendCommand({ "get", "name" }).as_string() << endl;
-        //cout << obj.SendCommand({ "AUTH", "12345678" }).as_string() << endl;
     }
     catch (const exception& e)
     {

@@ -32,7 +32,7 @@ class redis_data_error : public redis_error
 {
 public:
     explicit redis_data_error(const std::string& msg) :
-        redis_error("Redis reply error: " + msg)
+        redis_error("Redis data error: " + msg)
     {
     }
 };

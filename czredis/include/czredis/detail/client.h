@@ -34,14 +34,13 @@ public:
         {
             my_base::connect(host_, port_);
             if (password_ != "")
-            {
                 auth(password_);
-                read_reply();
-            }
             if (database_ > 0)
-            {
                 select(database_);
-                read_reply();
+            for (auto& r : read_all_reply())
+            {
+                if (r.is_error())
+                    throw redis_commmand_error(r.as_string());
             }
         }
     }
@@ -51,7 +50,7 @@ public:
         if (is_connected())
         {
             my_base::disconnect();
-            response_count_ = 0;
+            send_count_ = 0;
             is_in_multi_ = false;
             is_in_watch_ = false;
         }
@@ -59,36 +58,51 @@ public:
 
     void send_command(cref_string command, init_string_list params1 = {}, init_string_list params2 = {})
     {
-        check_connect();
+        if (!is_connected())
+            throw redis_connection_error("not connected");
         resp_.send_command(command, params1, params2);
-        ++response_count_;
+        ++send_count_;
     }
 
     reply read_reply()
     {
-        check_connect();
-        --response_count_;
+        --send_count_;
         return resp_.read_reply();
     }
 
     reply_array read_all_reply()
     {
         reply_array arr;
-        while (response_count_ > 0)
+        while (send_count_ > 0)
         {
             arr.emplace_back(read_reply());
         }
         return arr;
     }
 
-    void set_password(const std::string& password) noexcept
+    size_t send_count() const noexcept
     {
-        password_ = password;
+        return send_count_;
     }
 
-    void set_database(unsigned database) noexcept
+    czstring password() const noexcept
     {
-        database_ = database;
+        return password_;
+    }
+
+    unsigned database() const noexcept
+    {
+        return database_;
+    }
+
+    void set_password(cref_string pwd) noexcept
+    {
+        password_ = pwd;
+    }
+
+    void set_database(unsigned db) noexcept
+    {
+        database_ = db;
     }
 
     bool is_in_multi() const noexcept
@@ -143,7 +157,9 @@ public:
     virtual void bitop(cref_string operation, cref_string dest_key, init_string_list keys) override
     {
         czstring temp = operation;
-        std::transform(temp.cbegin(), temp.cend(), temp.begin(), std::toupper);
+        std::transform(temp.cbegin(), temp.cend(), temp.begin(), [](char c) {
+            return static_cast<char>(std::toupper(static_cast<char>(c)));
+        });
         if (temp != "AND" && temp != "OR" && temp != "XOR" && temp != "NOT")
             throw redis_commmand_error("ERR syntax error");
         if (keys.size() == 0)
@@ -311,19 +327,13 @@ public:
 private:
     std::string     host_;
     std::string     port_;
-    czstring      password_;
+    czstring        password_;
     unsigned        database_;
     bool            is_in_multi_ = false;
     bool            is_in_watch_ = false;
-    size_t          response_count_ = 0;
+    size_t          send_count_ = 0;
 
     resp            resp_{ *this };
-
-    void check_connect()
-    {
-        if (!is_connected())
-            throw redis_connection_error("client is not connected");
-    }
 };
 
 } // namespace detail

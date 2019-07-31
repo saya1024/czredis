@@ -16,7 +16,13 @@ public:
 
     reply_array read_results()
     {
-        return client_.read_all_reply();
+        auto results = client_.read_all_reply();
+        for (auto& r : results)
+        {
+            if (r.is_error())
+                throw redis_commmand_error(r.as_error());
+        }
+        return results;
     }
 
     bool discard_and_reply()

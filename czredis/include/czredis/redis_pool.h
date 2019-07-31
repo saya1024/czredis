@@ -16,7 +16,7 @@ public:
                const redis_pool_config& config = redis_pool_config()) :
         host_(host),
         port_(port),
-        redis_config_(config),
+        config_(config),
         my_base(config.max_size, config.max_idle)
     {
     }
@@ -32,7 +32,8 @@ public:
         {
             throw redis_pool_exhausted_error();
         }
-        return std::move(p);
+        p->do_connect();
+        return p;
     }
 
 protected:
@@ -40,11 +41,16 @@ protected:
     {
         try
         {
-            if (c->is_in_multi())
-                c->discard();
-            if (c->is_in_watch())
-                c->unwatch();
-            c->read_all_reply();
+            if (c->is_connected())
+            {
+                if (c->is_in_multi())
+                    c->discard();
+                if (c->is_in_watch())
+                    c->unwatch();
+                if (c->database() != config_.database)
+                    c->select(config_.database);
+                c->read_all_reply();
+            }
         }
         catch (const std::exception&)
         {
@@ -54,7 +60,7 @@ protected:
 
     virtual client* new_object() override
     {
-        return new client(host_, port_, redis_config_);
+        return new client(host_, port_, config_);
     }
 
     virtual void delete_object(client* c) noexcept override
@@ -64,7 +70,7 @@ protected:
 
     std::string  host_;
     std::string  port_;
-    redis_config redis_config_;
+    redis_config config_;
 };
 
 } // namespace czredis
