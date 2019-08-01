@@ -32,32 +32,15 @@ public:
 
     czint read_integer_crlf()
     {
-        czint value = 0;
-        bool minus = false;
-        while (true)
+        auto s = read_string_crlf();
+        try
         {
-            auto b = read_byte();
-            if (b == '\r')
-            {
-                if (read_byte() != '\n')
-                    throw redis_connection_error("unexpected end of stream");
-                break;
-            }
-            else if (b == '-')
-            {
-                minus = true;
-            }
-            else if (b >= '0' && b <= '9')
-            {
-                value = value * 10 + b - '0';
-            }
-            else
-            {
-                throw redis_connection_error("unexpected end of stream");
-            }
+            return std::stoll(s);
         }
-
-        return minus ? -value : value;
+        catch (const std::exception&)
+        {
+            throw redis_connection_error("read integer error");
+        }
     }
 
     czstring read_string_crlf()
@@ -107,9 +90,9 @@ public:
     void read_crlf()
     {
         if (read_byte() != '\r')
-            throw redis_connection_error("unexpected end of stream");
+            throw redis_connection_error("read crlf error");
         if (read_byte() != '\n')
-            throw redis_connection_error("unexpected end of stream");
+            throw redis_connection_error("read crlf error");
     }
 
     void write_string(const czstring& s)
