@@ -32,12 +32,8 @@ public:
 
     czint read_integer_crlf()
     {
-        ensure_fill();
-        bool is_neg = *begin_ == '-';
-        if (is_neg)
-            ++begin_;
-
         czint value = 0;
+        bool minus = false;
         while (true)
         {
             auto b = read_byte();
@@ -47,13 +43,21 @@ public:
                     throw redis_connection_error("unexpected end of stream");
                 break;
             }
-            else
+            else if (b == '-')
+            {
+                minus = true;
+            }
+            else if (b >= '0' && b <= '9')
             {
                 value = value * 10 + b - '0';
             }
+            else
+            {
+                throw redis_connection_error("unexpected end of stream");
+            }
         }
 
-        return is_neg ? -value : value;
+        return minus ? -value : value;
     }
 
     czstring read_string_crlf()
