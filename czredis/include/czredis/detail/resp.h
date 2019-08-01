@@ -16,7 +16,7 @@ public:
     static constexpr char kSymbolOfBulkString = '$';
     static constexpr char kSymbolOfArray = '*';
 
-    resp(socket& s) noexcept :
+    resp(socket& s) :
         stream_(s)
     {
     }

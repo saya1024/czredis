@@ -11,37 +11,39 @@ class stream : private asio::noncopyable
 {
     constexpr static size_t kBufSize = 4096;
 public:
-    stream(socket& s) noexcept:
-        socket_(s)
+    stream(socket& s) :
+        socket_(s),
+        buf_(new byte[kBufSize]),
+        begin_(buf_),
+        end_(buf_)
     {
     }
 
     ~stream() noexcept
     {
+        delete[] buf_;
     }
 
     byte read_byte()
     {
         ensure_fill();
-        return buf_[begin_++];
+        return *(begin_++);
     }
 
     czint read_integer_crlf()
     {
         ensure_fill();
-        bool is_neg = buf_[begin_] == '-';
+        bool is_neg = *begin_ == '-';
         if (is_neg)
             ++begin_;
 
         czint value = 0;
         while (true)
         {
-            ensure_fill();
-            auto b = buf_[begin_++];
+            auto b = read_byte();
             if (b == '\r')
             {
-                ensure_fill();
-                if (buf_[begin_++] != '\n')
+                if (read_byte() != '\n')
                     throw redis_connection_error("unexpected end of stream");
                 break;
             }
@@ -60,17 +62,17 @@ public:
         while (true)
         {
             ensure_fill();
-            for (auto i = begin_; i < end_; i++)
+            for (auto it = begin_; it != end_; it++)
             {
-                if (buf_[i] == '\r')
+                if (*it == '\r')
                 {
-                    s.append(buf_ + begin_, buf_ + i);
-                    begin_ = i;
+                    s.append(begin_, it);
+                    begin_ = it;
                     read_crlf();
                     return s;
                 }
             }
-            s.append(buf_ + begin_, buf_ + end_);
+            s.append(begin_, end_);
             begin_ = end_;
         }
     }
@@ -85,13 +87,13 @@ public:
         auto buf_size = end_ - begin_;
         if (read_size > buf_size)
         {
-            s.append(buf_ + begin_, buf_ + end_);
+            s.append(begin_, end_);
             begin_ = end_;
             socket_.read(s, read_size - buf_size);
         }
         else
         {
-            s.append(buf_ + begin_, buf_ + begin_ + read_size);
+            s.append(begin_, begin_ + read_size);
             begin_ += read_size;
         }
         read_crlf();
@@ -100,11 +102,9 @@ public:
 
     void read_crlf()
     {
-        ensure_fill();
-        if (buf_[begin_++] != '\r')
+        if (read_byte() != '\r')
             throw redis_connection_error("unexpected end of stream");
-        ensure_fill();
-        if (buf_[begin_++] != '\n')
+        if (read_byte() != '\n')
             throw redis_connection_error("unexpected end of stream");
     }
 
@@ -120,16 +120,16 @@ public:
 
 private:
     socket& socket_;
-    byte buf_[kBufSize];
-    size_t begin_ = 0;
-    size_t end_ = 0;
+    byte* buf_;
+    byte* begin_;
+    byte* end_;
 
     void ensure_fill()
     {
         if (begin_ == end_)
         {
-            begin_ = 0;
-            end_ = socket_.read_some(buf_, kBufSize);
+            begin_ = buf_;
+            end_ = begin_ + socket_.read_some(buf_, kBufSize);
         }
     }
 };

@@ -35,13 +35,12 @@ public:
         if (c->is_connected())
         {
             if (c->database() != config_.database)
-            {
                 c->select(config_.database);
-                c->read_all_reply();
-            }
+            c->read_all_reply();
         }
         else
         {
+            c->set_database(config_.database);
             c->do_connect();
         }
         return c;
