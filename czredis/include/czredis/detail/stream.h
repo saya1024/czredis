@@ -71,7 +71,7 @@ public:
         {
             s.reserve(read_size);
         }
-        auto buf_size = end_ - begin_;
+        size_t buf_size = end_ - begin_;
         if (read_size > buf_size)
         {
             s.append(begin_, end_);
