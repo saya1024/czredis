@@ -151,7 +151,7 @@ public:
 private:
     reply_type  type_;
     czstring    str_;
-    czint int_;
+    czint       int_ = 0;
     reply_array arr_;
 };
 

@@ -61,6 +61,7 @@ type WATCH      = "WATCH";
 struct command_interface
 {
     virtual void auth(cref_string password) = 0;
+    virtual void auth(cref_string user, cref_string password) = 0;
     virtual void echo(cref_string message) = 0;
     virtual void ping() = 0;
     virtual void quit() = 0;

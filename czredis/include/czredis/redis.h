@@ -9,7 +9,7 @@ namespace czredis
 class redis : private asio::noncopyable
 {
     using client = detail::client;
-    using unique_ptr = std::unique_ptr<client, std::function<void(client*)>>;
+    using unique_ptr_client = std::unique_ptr<client, std::function<void(client*)>>;
     friend class redis_pool;
 
 public:
@@ -24,13 +24,13 @@ public:
     {
     }
 
-    redis(redis&& r) :
+    redis(redis&& r) noexcept :
         client_ptr_(std::move(r.client_ptr_)),
         client_(*client_ptr_)
     {
     }
 
-    redis(unique_ptr&& ptr) :
+    redis(unique_ptr_client&& ptr) :
         client_ptr_(std::move(ptr)),
         client_(*client_ptr_)
     {
@@ -70,6 +70,13 @@ public:
     {
         check_pipline();
         client_.auth(password);
+        return read_reply().is_ok();
+    }
+
+    bool auth(cref_string user, cref_string password)
+    {
+        check_pipline();
+        client_.auth(user, password);
         return read_reply().is_ok();
     }
 
@@ -264,7 +271,7 @@ public:
 
 
 private:
-    unique_ptr client_ptr_;
+    unique_ptr_client client_ptr_;
     client& client_;
 
     reply read_reply()

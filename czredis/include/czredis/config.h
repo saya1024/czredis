@@ -6,6 +6,7 @@ namespace czredis
 {
 
 struct redis_config {
+    czstring    user                    = "";
     czstring    password                = "";
     unsigned    database                = 0;
     unsigned    connect_timeout         = 1000;

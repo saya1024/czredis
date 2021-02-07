@@ -13,7 +13,7 @@ template<class OBJ>
 class pool : private asio::noncopyable
 {
 public:
-    using unique_ptr = std::unique_ptr<OBJ, std::function<void(OBJ*)>>;
+    using unique_ptr_obj = std::unique_ptr<OBJ, std::function<void(OBJ*)>>;
     using unique_lock = std::unique_lock<std::mutex>;
 
     pool(size_t max_size, size_t max_idle) :
@@ -44,7 +44,7 @@ public:
     }
 
 protected:
-    unique_ptr borrow_object()
+    unique_ptr_obj borrow_object()
     {
         unique_lock lock(mtx_);
         OBJ* obj = nullptr;
@@ -60,7 +60,7 @@ protected:
                 obj = pool_.pop_front();
             }
         }
-        return unique_ptr(obj, [this](OBJ* obj) { return_object(obj); });
+        return unique_ptr_obj(obj, [this](OBJ* obj) { return_object(obj); });
     }
 
     virtual void return_object(OBJ* obj) noexcept
@@ -71,6 +71,10 @@ protected:
         if (pool_.size() < max_idle_)
         {
             pool_.push_back(std::move(obj));
+        }
+        else
+        {
+            delete_object(obj);
         }
         if (used_count_ == 0)
         {

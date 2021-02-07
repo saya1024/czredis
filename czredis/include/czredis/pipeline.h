@@ -14,7 +14,7 @@ public:
     using cref_string = const czstring&;
     using init_strings = std::initializer_list<czstring>;
 
-    reply_array read_results()
+    reply_array sync_commands()
     {
         auto results = client_.read_all_reply();
         for (auto& r : results)
@@ -25,19 +25,13 @@ public:
         return results;
     }
 
-    bool discard_and_reply()
-    {
-        discard();
-        return read_results().back().is_ok();
-    }
-
-    bool exec_and_reply(reply_array& results)
+    bool exec_and_sync(reply_array& results)
     {
         exec();
-        auto r = read_results().back();
-        if (r.is_array())
+        auto arr = sync_commands();
+        if (arr.back().is_array())
         {
-            results = std::move(r.as_array());
+            results = std::move(arr.back().as_array());
             return true;
         }
         return false;
@@ -57,6 +51,11 @@ public:
     virtual void auth(cref_string password) override
     {
         client_.auth(password);
+    }
+
+    virtual void auth(cref_string user, cref_string password) override
+    {
+        client_.auth(user, password);
     }
 
     virtual void echo(cref_string message) override

@@ -42,24 +42,24 @@ public:
         return size_ == 0;
     }
 
-    void push_back(VAL&& value) noexcept
+    void push_back(VAL value)
     {
         if (size_ == capacity_)
             return;
 
         ++size_;
-        new(end_) VAL(std::move(value));
+        *end_ = value;
         end_ = next(end_);
     }
 
-    void push_front(VAL&& value) noexcept
+    void push_front(VAL value)
     {
         if (size_ == capacity_)
             return;
 
         ++size_;
         begin_ = before(begin_);
-        new(begin_) VAL(std::move(value));
+        *begin_ = value;
     }
 
     VAL pop_back()
@@ -69,7 +69,7 @@ public:
 
         --size_;
         end_ = before(end_);
-        return std::move(*end_);
+        return *end_;
     }
 
     VAL pop_front()
@@ -78,9 +78,9 @@ public:
             throw std::out_of_range("allocated_queue empty before pop");
 
         --size_;
-        auto temp = begin_;
+        auto it = begin_;
         begin_ = next(begin_);
-        return std::move(*temp);
+        return *it;
     }
 
 protected:

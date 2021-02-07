@@ -9,9 +9,7 @@ namespace detail
 class socket : private asio::noncopyable
 {
 public:
-    socket() :
-        io_context_(1),
-        socket_(io_context_)
+    socket() : io_context_(1)
     {
     }
 
@@ -22,25 +20,29 @@ public:
 
     void connect(const std::string& host, const std::string& service)
     {
-        auto endpoints = tcp::resolver(io_context_).resolve(host, service);
-        if (connect_timeout_ > 0)
+        if (!is_connected_)
         {
-            asio::error_code ec;
-            asio::async_connect(socket_, endpoints, [&ec](
-                const asio::error_code& result_error,
-                const tcp::endpoint& /*result_endpoint*/)
+            auto endpoints = tcp::resolver(io_context_).resolve(host, service);
+            socket_.reset(new tcp::socket(io_context_));
+            if (connect_timeout_ > 0)
             {
-                ec = result_error;
-            });
-            if (!run(connect_timeout_))
-                throw redis_connection_error("connect timeout");
-            throw_error(ec);
+                asio::error_code ec;
+                asio::async_connect(*socket_, endpoints, [&ec](
+                    const asio::error_code& result_error,
+                    const tcp::endpoint& /*result_endpoint*/)
+                {
+                    ec = result_error;
+                });
+                if (!run(connect_timeout_))
+                    throw redis_connection_error("connect timeout");
+                throw_error(ec);
+            }
+            else
+            {
+                asio::connect(*socket_, endpoints);
+            }
+            is_connected_ = true;
         }
-        else
-        {
-            asio::connect(socket_, endpoints);
-        }
-        is_connected_ = true;
     }
 
     virtual void disconnect() noexcept
@@ -48,8 +50,8 @@ public:
         if (is_connected_)
         {
             asio::error_code ignore_ec;
-            socket_.shutdown(tcp::socket::shutdown_both, ignore_ec);
-            socket_.close(ignore_ec);
+            socket_->shutdown(tcp::socket::shutdown_both, ignore_ec);
+            socket_->close(ignore_ec);
             is_connected_ = false;
         }
     }
@@ -60,7 +62,7 @@ public:
         if (write_timeout_ > 0)
         {
             asio::error_code ec;
-            asio::async_write(socket_, asio::buffer(buf.c_str(), buf.size()), [&ec, &ret](
+            asio::async_write(*socket_, asio::buffer(buf.c_str(), buf.size()), [&ec, &ret](
                 const asio::error_code& result_error,
                 size_t result_size)
             {
@@ -73,7 +75,7 @@ public:
         }
         else
         {
-            ret = asio::write(socket_, asio::buffer(buf.c_str(), buf.size()));
+            ret = asio::write(*socket_, asio::buffer(buf.c_str(), buf.size()));
         }
         return ret;
     }
@@ -84,7 +86,7 @@ public:
         if (write_timeout_ > 0)
         {
             asio::error_code ec;
-            asio::async_write(socket_, asio::buffer(buf, buf_size), [&ec, &ret](
+            asio::async_write(*socket_, asio::buffer(buf, buf_size), [&ec, &ret](
                 const asio::error_code& result_error,
                 size_t result_size)
             {
@@ -97,7 +99,7 @@ public:
         }
         else
         {
-            ret = asio::write(socket_, asio::buffer(buf, buf_size));
+            ret = asio::write(*socket_, asio::buffer(buf, buf_size));
         }
         return ret;
     }
@@ -108,7 +110,7 @@ public:
         if (read_timeout_ > 0)
         {
             asio::error_code ec;
-            asio::async_read(socket_, asio::dynamic_buffer(buf), asio::transfer_exactly(read_size), [&ec, &ret](
+            asio::async_read(*socket_, asio::dynamic_buffer(buf), asio::transfer_exactly(read_size), [&ec, &ret](
                 const asio::error_code& result_error,
                 size_t result_size)
             {
@@ -121,7 +123,7 @@ public:
         } 
         else
         {
-            ret = asio::read(socket_, asio::dynamic_buffer(buf), asio::transfer_exactly(read_size));
+            ret = asio::read(*socket_, asio::dynamic_buffer(buf), asio::transfer_exactly(read_size));
         }
         return ret;
     }
@@ -132,7 +134,7 @@ public:
         if (read_timeout_ > 0)
         {
             asio::error_code ec;
-            socket_.async_read_some(asio::buffer(buf, buf_size), [&ec, &ret](
+            socket_->async_read_some(asio::buffer(buf, buf_size), [&ec, &ret](
                 const asio::error_code& result_error,
                 size_t result_size)
             {
@@ -145,7 +147,7 @@ public:
         }
         else
         {
-            ret = socket_.read_some(asio::buffer(buf, buf_size));
+            ret = socket_->read_some(asio::buffer(buf, buf_size));
         }
         return ret;
     }
@@ -177,7 +179,7 @@ protected:
 
 private:
     asio::io_context io_context_;
-    tcp::socket socket_;
+    std::unique_ptr<tcp::socket> socket_;
     bool is_connected_ = false;
 
     bool run(unsigned timeout_ms)

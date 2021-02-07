@@ -16,6 +16,7 @@ public:
     client(const std::string& host, const std::string& port, const redis_config& config) :
         host_(host),
         port_(port),
+        user_(config.user),
         password_(config.password),
         database_(config.database)
     {
@@ -33,7 +34,9 @@ public:
         if (!is_connected())
         {
             my_base::connect(host_, port_);
-            if (password_ != "")
+            if (user_ != "")
+                auth(user_, password_);
+            else if (password_ != "")
                 auth(password_);
             if (database_ > 0)
                 select(database_);
@@ -66,12 +69,16 @@ public:
 
     reply read_reply()
     {
+        if (!is_connected())
+            throw redis_connection_error("not connected");
         --send_count_;
         return resp_.read_reply();
     }
 
     reply_array read_all_reply()
     {
+        if (!is_connected())
+            throw redis_connection_error("not connected");
         reply_array arr;
         while (send_count_ > 0)
         {
@@ -90,6 +97,11 @@ public:
         return password_;
     }
 
+    czstring user() const noexcept
+    {
+        return user_;
+    }
+
     unsigned database() const noexcept
     {
         return database_;
@@ -98,6 +110,11 @@ public:
     void set_password(cref_string pwd) noexcept
     {
         password_ = pwd;
+    }
+
+    void set_user(cref_string user) noexcept
+    {
+        user_ = user;
     }
 
     void set_database(unsigned db) noexcept
@@ -119,6 +136,12 @@ public:
     virtual void auth(cref_string password) override
     {
         send_command(cmd::connection::AUTH, { password });
+        set_password(password);
+    }
+
+    virtual void auth(cref_string user, cref_string password) override
+    {
+        send_command(cmd::connection::AUTH, { user, password });
         set_password(password);
     }
 
@@ -263,7 +286,7 @@ public:
         send_command(cmd::string::SETEX, { key, std::to_string(seconds), value });
     }
 
-    virtual void setnx(cref_string key, cref_string value)
+    virtual void setnx(cref_string key, cref_string value) override
     {
         send_command(cmd::string::SETNX, { key, value });
     }
@@ -327,6 +350,7 @@ public:
 private:
     std::string     host_;
     std::string     port_;
+    czstring        user_;
     czstring        password_;
     unsigned        database_;
     bool            is_in_multi_ = false;
