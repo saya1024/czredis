@@ -20,8 +20,7 @@ public:
         max_size_(max_size),
         max_idle_(max_idle),
         pool_(max_size)
-    {
-    }
+    {}
 
     virtual ~pool() noexcept
     {

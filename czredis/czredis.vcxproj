@@ -24,20 +24,26 @@
     <ClInclude Include="include\czredis\common.h" />
     <ClInclude Include="include\czredis\config.h" />
     <ClInclude Include="include\czredis\detail\allocated_queue.h" />
+    <ClInclude Include="include\czredis\detail\call_finally.h" />
     <ClInclude Include="include\czredis\detail\client.h" />
     <ClInclude Include="include\czredis\detail\comand.h" />
+    <ClInclude Include="include\czredis\detail\iterator.h" />
+    <ClInclude Include="include\czredis\detail\param_templete.h" />
     <ClInclude Include="include\czredis\detail\pool.h" />
     <ClInclude Include="include\czredis\detail\resp.h" />
     <ClInclude Include="include\czredis\detail\socket.h" />
     <ClInclude Include="include\czredis\detail\stream.h" />
+    <ClInclude Include="include\czredis\detail\utils.h" />
     <ClInclude Include="include\czredis\error.h" />
+    <ClInclude Include="include\czredis\params.h" />
     <ClInclude Include="include\czredis\pipeline.h" />
     <ClInclude Include="include\czredis\redis.h" />
     <ClInclude Include="include\czredis\redis_pool.h" />
     <ClInclude Include="include\czredis\reply.h" />
+    <ClInclude Include="include\czredis\data.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="include\test.cpp" />
+    <ClCompile Include="test\main.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

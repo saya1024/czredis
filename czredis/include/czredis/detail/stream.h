@@ -16,8 +16,7 @@ public:
         buf_(new byte[kBufSize]),
         begin_(buf_),
         end_(buf_)
-    {
-    }
+    {}
 
     ~stream() noexcept
     {

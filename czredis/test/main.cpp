@@ -10,7 +10,7 @@
 #include <cassert>
 #include <thread>
 #include <atomic>
-#include "czredis.h"
+#include "../include/czredis.h"
 
 using namespace std;
 using namespace chrono;

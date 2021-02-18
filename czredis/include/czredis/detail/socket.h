@@ -10,8 +10,7 @@ class socket : private asio::noncopyable
 {
 public:
     socket() : io_context_(1)
-    {
-    }
+    {}
 
     virtual ~socket() noexcept
     {
@@ -27,9 +26,9 @@ public:
             if (connect_timeout_ > 0)
             {
                 asio::error_code ec;
-                asio::async_connect(*socket_, endpoints, [&ec](
-                    const asio::error_code& result_error,
-                    const tcp::endpoint& /*result_endpoint*/)
+                asio::async_connect(*socket_, endpoints,
+                    [&ec](const asio::error_code& result_error,
+                          const tcp::endpoint& /*result_endpoint*/)
                 {
                     ec = result_error;
                 });
@@ -58,37 +57,18 @@ public:
 
     size_t write(const czstring& buf)
     {
-        size_t ret = 0;
-        if (write_timeout_ > 0)
-        {
-            asio::error_code ec;
-            asio::async_write(*socket_, asio::buffer(buf.c_str(), buf.size()), [&ec, &ret](
-                const asio::error_code& result_error,
-                size_t result_size)
-            {
-                ec = result_error;
-                ret = result_size;
-            });
-            if (!run(write_timeout_))
-                throw redis_connection_error("write timeout");
-            throw_error(ec);
-        }
-        else
-        {
-            ret = asio::write(*socket_, asio::buffer(buf.c_str(), buf.size()));
-        }
-        return ret;
+        return write(buf.c_str(), buf.size());
     }
 
     size_t write(const char* buf, size_t buf_size)
     {
         size_t ret = 0;
-        if (write_timeout_ > 0)
+        if (write_timeout_ > 0 && !blocking_)
         {
             asio::error_code ec;
-            asio::async_write(*socket_, asio::buffer(buf, buf_size), [&ec, &ret](
-                const asio::error_code& result_error,
-                size_t result_size)
+            asio::async_write(*socket_, asio::buffer(buf, buf_size),
+                [&ec, &ret](const asio::error_code& result_error,
+                            size_t result_size)
             {
                 ec = result_error;
                 ret = result_size;
@@ -107,12 +87,13 @@ public:
     size_t read(czstring& buf, size_t read_size)
     {
         size_t ret = 0;
-        if (read_timeout_ > 0)
+        if (read_timeout_ > 0 && !blocking_)
         {
             asio::error_code ec;
-            asio::async_read(*socket_, asio::dynamic_buffer(buf), asio::transfer_exactly(read_size), [&ec, &ret](
-                const asio::error_code& result_error,
-                size_t result_size)
+            asio::async_read(*socket_, asio::dynamic_buffer(buf),
+                asio::transfer_exactly(read_size),
+                [&ec, &ret](const asio::error_code& result_error,
+                            size_t result_size)
             {
                 ec = result_error;
                 ret = result_size;
@@ -123,7 +104,8 @@ public:
         } 
         else
         {
-            ret = asio::read(*socket_, asio::dynamic_buffer(buf), asio::transfer_exactly(read_size));
+            ret = asio::read(*socket_, asio::dynamic_buffer(buf),
+                asio::transfer_exactly(read_size));
         }
         return ret;
     }
@@ -131,12 +113,12 @@ public:
     size_t read_some(byte* buf, size_t buf_size)
     {
         size_t ret = 0;
-        if (read_timeout_ > 0)
+        if (read_timeout_ > 0 && !blocking_)
         {
             asio::error_code ec;
-            socket_->async_read_some(asio::buffer(buf, buf_size), [&ec, &ret](
-                const asio::error_code& result_error,
-                size_t result_size)
+            socket_->async_read_some(asio::buffer(buf, buf_size),
+                [&ec, &ret](const asio::error_code& result_error,
+                            size_t result_size)
             {
                 ec = result_error;
                 ret = result_size;
@@ -172,15 +154,19 @@ public:
         write_timeout_ = millis;
     }
 
-protected:
-    unsigned connect_timeout_ = 0;
-    unsigned read_timeout_ = 0;
-    unsigned write_timeout_ = 0;
+    void set_block(bool blocking) noexcept
+    {
+        blocking_ = blocking;
+    }
 
 private:
     asio::io_context io_context_;
     std::unique_ptr<tcp::socket> socket_;
     bool is_connected_ = false;
+    unsigned connect_timeout_ = 0;
+    unsigned read_timeout_ = 0;
+    unsigned write_timeout_ = 0;
+    bool blocking_ = false;
 
     bool run(unsigned timeout_ms)
     {

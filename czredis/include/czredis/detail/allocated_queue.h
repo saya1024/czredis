@@ -20,8 +20,7 @@ public:
         allocated_((VAL*)malloc(sizeof(VAL) * capacity_)),
         begin_(allocated_),
         end_(allocated_)
-    {
-    }
+    {}
 
     ~allocated_queue() noexcept
     {

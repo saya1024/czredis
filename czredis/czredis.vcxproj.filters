@@ -10,6 +10,9 @@
     <Filter Include="include\czredis\detail">
       <UniqueIdentifier>{00b59783-42fe-4803-84d7-dd8ddaea4401}</UniqueIdentifier>
     </Filter>
+    <Filter Include="test">
+      <UniqueIdentifier>{cdefa480-36ee-4e31-bb94-72d53dd1c1c0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\asio.hpp">
@@ -60,10 +63,28 @@
     <ClInclude Include="include\czredis\detail\allocated_queue.h">
       <Filter>include\czredis\detail</Filter>
     </ClInclude>
+    <ClInclude Include="include\czredis\detail\utils.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\param_templete.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\params.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\data.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\call_finally.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\iterator.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="include\test.cpp">
-      <Filter>include</Filter>
+    <ClCompile Include="test\main.cpp">
+      <Filter>test</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
