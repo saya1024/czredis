@@ -1,75 +1,39 @@
 #pragma once
 
+#include "error.h"
+#include "detail/move_only.h"
+
 namespace czredis
 {
 
 class reply
 {
+    reply_type          type_;
+    czint               int_ = 0;
+    czstring            str_;
+    std::vector<reply>  arr_;
+
 public:
     using reply_array = std::vector<reply>;
 
-    reply() noexcept :
+    explicit reply() :
         type_(reply_type::kNull)
     {}
 
-    reply(czstring&& s, bool err = false) :
+    explicit reply(czstring&& s, bool err = false) :
         type_(err ? reply_type::kError : reply_type::kString),
         str_(std::move(s))
     {}
 
-    reply(czint i) noexcept :
+    explicit reply(czint i) :
         type_(reply_type::kInteger),
         int_(i)
     {}
 
-    reply(reply_array&& arr) :
+    explicit reply(reply_array&& arr) :
         type_(reply_type::kArray),
         arr_(std::move(arr))
     {}
-
-    reply(const reply& r) :
-        type_(r.type_),
-        int_(r.int_),
-        str_(r.str_),
-        arr_(r.arr_)
-    {}
-
-    reply(reply&& r) noexcept :
-        type_(r.type_),
-        int_(r.int_),
-        str_(std::move(r.str_)),
-        arr_(std::move(r.arr_))
-    {}
-
-    ~reply() {};
-
-    reply& operator=(const reply& r)
-    {
-        type_ = r.type_;
-        switch (r.type_)
-        {
-        case reply_type::kString:
-        case reply_type::kError:
-            str_ = r.str_;
-            break;
-        case reply_type::kInteger:
-            int_ = r.int_;
-            break;
-        case reply_type::kArray:
-            arr_ = r.arr_;
-            break;
-        }
-        return *this;
-    }
-
-    reply& operator=(reply&& r) noexcept
-    {
-        type_ = r.type_;
-        int_ = r.int_;
-        str_ = std::move(r.str_);
-        arr_ = std::move(r.arr_);
-        return *this;
-    }
 
     czint as_integer() const
     {
@@ -166,12 +130,6 @@ public:
     {
         return type_;
     }
-
-private:
-    reply_type  type_;
-    czint       int_ = 0;
-    czstring    str_;
-    reply_array arr_;
 };
 
 using reply_array = std::vector<reply>;

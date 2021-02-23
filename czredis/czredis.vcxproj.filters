@@ -13,6 +13,9 @@
     <Filter Include="test">
       <UniqueIdentifier>{cdefa480-36ee-4e31-bb94-72d53dd1c1c0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="include\czredis\detail\interface">
+      <UniqueIdentifier>{2cd992d6-360a-45a3-adab-e9db240f8c0f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\asio.hpp">
@@ -22,9 +25,6 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\czredis\common.h">
-      <Filter>include\czredis</Filter>
-    </ClInclude>
-    <ClInclude Include="include\czredis\config.h">
       <Filter>include\czredis</Filter>
     </ClInclude>
     <ClInclude Include="include\czredis\error.h">
@@ -42,9 +42,6 @@
     <ClInclude Include="include\czredis\detail\client.h">
       <Filter>include\czredis\detail</Filter>
     </ClInclude>
-    <ClInclude Include="include\czredis\detail\comand.h">
-      <Filter>include\czredis\detail</Filter>
-    </ClInclude>
     <ClInclude Include="include\czredis\detail\pool.h">
       <Filter>include\czredis\detail</Filter>
     </ClInclude>
@@ -60,12 +57,6 @@
     <ClInclude Include="include\czredis\pipeline.h">
       <Filter>include\czredis</Filter>
     </ClInclude>
-    <ClInclude Include="include\czredis\detail\allocated_queue.h">
-      <Filter>include\czredis\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="include\czredis\detail\utils.h">
-      <Filter>include\czredis\detail</Filter>
-    </ClInclude>
     <ClInclude Include="include\czredis\detail\param_templete.h">
       <Filter>include\czredis\detail</Filter>
     </ClInclude>
@@ -79,6 +70,75 @@
       <Filter>include\czredis\detail</Filter>
     </ClInclude>
     <ClInclude Include="include\czredis\detail\iterator.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\delay.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\pool_object.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\data_cast.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\connection.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\geo.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\hashes.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\hyper_log_log.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\keys.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\lists.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\scripting.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\sets.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\sorted_sets.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\streams.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\strings.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\transactions.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\command.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\delay_queue.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\move_only.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\one_key_delay_commands.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\delay_commands.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\direct_commands.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\one_key_direct_commands.h">
       <Filter>include\czredis\detail</Filter>
     </ClInclude>
   </ItemGroup>

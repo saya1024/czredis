@@ -13,8 +13,12 @@ class v2_iterator
 {
     typedef typename std::vector<T1>::iterator iterator1;
     typedef typename std::vector<T2>::iterator iterator2;
+
+    iterator1 it1_;
+    iterator2 it2_;
+
 public:
-    v2_iterator(iterator1 it1, iterator2 it2) :
+    v2_iterator(iterator1 it1, iterator2 it2) noexcept :
         it1_(it1), it2_(it2)
     {}
 
@@ -33,16 +37,12 @@ public:
         return { *it1_, *it2_ };
     }
 
-    v2_iterator& operator++()
+    v2_iterator& operator++() noexcept
     {
         it1_++;
         it2_++;
         return this;
     }
-
-private:
-    iterator1 it1_;
-    iterator2 it2_;
 };
 
 } // namespace detail

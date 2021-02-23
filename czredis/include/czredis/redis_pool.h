@@ -1,15 +1,25 @@
 #pragma once
 
-#include "detail/pool.h"
 #include "redis.h"
+#include "detail/client.h"
+#include "detail/pool.h"
 
 namespace czredis
 {
+
+struct redis_pool_config :
+    public redis_config,
+    public detail::pool_config
+{};
 
 class redis_pool: public detail::pool<detail::client>
 {
     using client = detail::client;
     using my_base = detail::pool<client>;
+
+    std::string  host_;
+    std::string  port_;
+    redis_config config_;
 public:
     redis_pool(cref_string host,
                cref_string port,
@@ -17,66 +27,23 @@ public:
         host_(host),
         port_(port),
         config_(config),
-        my_base(config.max_size, config.max_idle)
+        my_base(config)
     {}
 
-    virtual ~redis_pool() noexcept override
+    ~redis_pool() noexcept override
     {}
 
     redis get_redis()
     {
-        auto c = borrow_object();
-        if (c == nullptr)
-        {
-            throw redis_pool_exhausted_error();
-        }
-        if (c->is_connected())
-        {
-            if (c->database() != config_.database)
-                c->select(config_.database);
-            c->get_all_reply();
-        }
-        else
-        {
-            c->set_database(config_.database);
-            c->do_connect();
-        }
-        return c;
+        return redis(borrow_object());
     }
 
-protected:
-    virtual void when_return(client* c) noexcept override
+private:
+
+    std::shared_ptr<client> create_object() override
     {
-        try
-        {
-            if (c->is_connected())
-            {
-                if (c->is_in_multi())
-                    c->discard();
-                if (c->is_in_watch())
-                    c->unwatch();
-                c->get_all_reply();
-            }
-        }
-        catch (const std::exception&)
-        {
-            c->disconnect();
-        }
+        return std::make_shared<client>(host_, port_, config_);
     }
-
-    virtual client* new_object() override
-    {
-        return new client(host_, port_, config_);
-    }
-
-    virtual void delete_object(client* c) noexcept override
-    {
-        delete c;
-    }
-
-    std::string  host_;
-    std::string  port_;
-    redis_config config_;
 };
 
 } // namespace czredis

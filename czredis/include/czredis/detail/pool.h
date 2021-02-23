@@ -1,99 +1,171 @@
 #pragma once
 
-#include <mutex>
-#include <list>
-#include "allocated_queue.h"
+#include "pool_object.h"
 
 namespace czredis
 {
+
+enum class when_exhausted_action { kWait, kThrow, kCreate };
+
 namespace detail
 {
 
-template<class OBJ>
+struct pool_config
+{
+    size_t pool_size = 8;
+    size_t init_size = 8;
+    when_exhausted_action when_exhausted = when_exhausted_action::kWait;
+    unsigned max_wait_millis = 1000;
+    unsigned max_idle_millis = 60 * 1000;
+    unsigned health_check_retry_times = 3;
+    unsigned health_check_millis = 30 * 1000;
+    bool health_check_on_borrow = false;
+};
+
+template<typename OBJ>
 class pool : private asio::noncopyable
 {
+    using pointer = std::shared_ptr<OBJ>;
+    using lock_guard = std::lock_guard<std::mutex>;
+
+    pool_config config_;
+    time_point last_check_idle_;
+    std::mutex mtx_;
+    std::vector<pool_object_slot<OBJ>> pool_;
+
 public:
-    using unique_ptr_obj = std::unique_ptr<OBJ, std::function<void(OBJ*)>>;
-    using unique_lock = std::unique_lock<std::mutex>;
-
-    pool(size_t max_size, size_t max_idle) :
-        max_size_(max_size),
-        max_idle_(max_idle),
-        pool_(max_size)
-    {}
-
-    virtual ~pool() noexcept
+    pool(const pool_config& config) :
+        config_(config),
+        last_check_idle_(steady_clock::now())
     {
-        unique_lock lock(mtx_);
-        cv_.wait(lock, [this] { return used_count_ == 0; });
-        while (!pool_.empty())
+        for (size_t i = 0; i < config_.init_size; i++)
         {
-            delete_object(pool_.pop_front());
+            pool_.emplace_back(create_object());
         }
     }
 
-    size_t used_count() const noexcept
-    {
-        return used_count_;
-    }
+    virtual ~pool() noexcept
+    {}
 
-    size_t idle_count() const noexcept
+    size_t real_size() const noexcept
     {
         return pool_.size();
     }
 
 protected:
-    unique_ptr_obj borrow_object()
+
+    virtual pointer create_object() = 0;
+
+    long long duration_millis(time_point time) noexcept
     {
-        unique_lock lock(mtx_);
-        OBJ* obj = nullptr;
-        if (used_count_ + pool_.size() < max_size_)
-        {
-            ++used_count_;
-            if (pool_.empty())
-            {
-                obj = new_object();
-            }
-            else
-            {
-                obj = pool_.pop_front();
-            }
-        }
-        return unique_ptr_obj(obj, [this](OBJ* obj) { return_object(obj); });
+        return std::chrono::duration_cast<
+            std::chrono::milliseconds>(steady_clock::now() - time).count();
     }
 
-    virtual void return_object(OBJ* obj) noexcept
+    void check_idle_time()
     {
-        when_return(obj);
-        unique_lock lock(mtx_);
-        --used_count_;
-        if (pool_.size() < max_idle_)
+        auto millis = static_cast<long long>(config_.max_idle_millis);
+        if (millis == 0)
+            return;
+        if (duration_millis(last_check_idle_) > millis)
         {
-            pool_.push_back(std::move(obj));
+            bool removed = false;
+            auto length = pool_.size();
+            for (size_t i = 0; i < length; i++)
+            {
+                auto& slot = pool_[i];
+                if (!slot.borrowed() && duration_millis(slot.last_borrow_time()) > millis)
+                {
+                    slot.set_ptr(nullptr);
+                    removed = true;
+                }
+            }
+            if (removed)
+            {
+                decltype(pool_) new_pool;
+                for (size_t i = 0; i < length; i++)
+                {
+                    auto& slot = pool_[i];
+                    if (!slot.empty())
+                        new_pool.emplace_back(std::move(slot));
+                }
+                pool_ = std::move(new_pool);
+            }
+            last_check_idle_ = steady_clock::now();
+        }
+    }
+
+    pointer get_one()
+    {
+        lock_guard lock(mtx_);
+
+        check_idle_time();
+        auto length = pool_.size();
+        for (size_t i = 0; i < length; i++)
+        {
+            auto& slot = pool_[i];
+            if (slot.not_borrowed())
+            {
+                slot.update_last_borrow_time();
+                return slot.get_ptr();
+            }
+        }
+        if (pool_.size() < config_.pool_size ||
+            (config_.when_exhausted == when_exhausted_action::kCreate))
+        {
+            auto pobj = create_object();
+            pool_.emplace_back(pobj);
+            return pobj;
+        }
+        if (config_.when_exhausted == when_exhausted_action::kThrow)
+        {
+            return nullptr;
+        }
+    }
+
+    pointer borrow_object()
+    {
+        pointer pobj = nullptr;
+        if (config_.when_exhausted == when_exhausted_action::kWait)
+        {
+            auto wait_start = steady_clock::now();
+            auto millis = static_cast<long long>(config_.max_wait_millis);
+            do
+            {
+                pobj = get_one();
+                if (pobj != nullptr)
+                    break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            } while (millis == 0 || duration_millis(wait_start) < millis);
         }
         else
         {
-            delete_object(obj);
+            pobj = get_one();
         }
-        if (used_count_ == 0)
+
+        if (pobj == nullptr)
         {
-            cv_.notify_one();
+            throw redis_pool_exhausted_error();
         }
+        else
+        {
+            if (config_.health_check_on_borrow)
+            {
+                unsigned retry_times = 0;
+                do
+                {
+                    if (pobj->check_health())
+                        break;
+                    ++retry_times;
+                } while (retry_times < config_.health_check_retry_times);
+            }
+            else
+            {
+                pobj->prepare();
+            }
+        }
+        return pobj;
     }
-
-    virtual void when_return(OBJ*) noexcept = 0;
-
-    virtual OBJ* new_object() = 0;
-
-    virtual void delete_object(OBJ*) noexcept = 0;
-
-private:
-    size_t          max_size_;
-    size_t          max_idle_;
-    size_t          used_count_ = 0;
-    std::mutex      mtx_;
-    std::condition_variable cv_;
-    allocated_queue<OBJ*> pool_;
 };
 
 } // namespace detail

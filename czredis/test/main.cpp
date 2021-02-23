@@ -197,7 +197,12 @@ void testHost()
     try
     {
         rds.connect();
-        cout << rds.get("name").as_string();
+        rds.auth("123456");
+        cout << rds.get("name").as_string() << endl;
+        auto p = rds.get_pipline();
+        auto name = p.get("name");
+        p.sync();
+        cout << name.get().as_string() << endl;
         rds.disconnect();
     }
     catch (const exception& e)

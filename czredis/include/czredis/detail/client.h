@@ -1,19 +1,41 @@
 #pragma once
 
 #include "resp.h"
-#include "comand.h"
-#include "../config.h"
+#include "command.h"
+#include "interface.h"
+#include "data_cast.h"
 
 namespace czredis
 {
 namespace detail
 {
 
-class client : public socket, public interface_commands
+struct client_config
+{
+    czstring username = "";
+    czstring password = "";
+    unsigned database = 0;
+    unsigned connect_timeout = 2000;
+    unsigned socket_read_timeout = 2000;
+    unsigned socket_write_timeout = 2000;
+};
+
+class client : public socket, public i_commands
 {
     using my_base = socket;
+
+    czstring    host_;
+    czstring    port_;
+    czstring    username_;
+    czstring    password_;
+    unsigned    database_;
+    bool        is_in_multi_ = false;
+    bool        is_in_watch_ = false;
+    size_t      send_count_ = 0;
+    resp        resp_{ *this };
+
 public:
-    client(cref_string host, cref_string port, const redis_config& config) :
+    client(cref_string host, cref_string port, const client_config& config) :
         host_(host),
         port_(port),
         username_(config.username),
@@ -25,7 +47,8 @@ public:
         set_write_timeout(config.socket_write_timeout);
     }
 
-    virtual ~client() override
+
+    ~client() noexcept override
     {}
 
     void do_connect()
@@ -39,15 +62,17 @@ public:
                 auth(password_);
             if (database_ > 0)
                 select(database_);
-            for (auto& r : get_all_reply())
+            auto rarr = get_all_reply();
+            auto length = rarr.size();
+            for (size_t i = 0; i < length; i++)
             {
-                if (r.is_error())
-                    throw redis_commmand_error(r.as_error());
+                if (rarr[i].is_error())
+                    throw redis_commmand_error(rarr[i].as_error());
             }
         }
     }
 
-    virtual void disconnect() noexcept override
+    void disconnect() noexcept override
     {
         if (is_connected())
         {
@@ -58,37 +83,73 @@ public:
         }
     }
 
+    void clean_state() noexcept
+    {
+        try
+        {
+            if (is_connected())
+            {
+                if (is_in_multi())
+                    discard();
+                if (is_in_watch())
+                    unwatch();
+                get_all_reply();
+            }
+        }
+        catch (const std::exception&)
+        {
+            disconnect();
+        }
+    }
+
+    void prepare() override final
+    {
+        clean_state();
+        if (!is_connected())
+            do_connect();
+    }
+
+    bool check_health() override final
+    {
+        try
+        {
+            prepare();
+            ping();
+            return get_one_reply().as_string() == keyword::PONG;
+        }
+        catch (const std::exception&)
+        {
+            disconnect();
+            return false;
+        }
+    }
+
     void send_command(cref_string_array params)
     {
-        check_connect();
         resp_.send_command(params);
         ++send_count_;
     }
 
     void send_command(cref_string_array params1, cref_string_array params2)
     {
-        check_connect();
         resp_.send_command(params1, params2);
         ++send_count_;
     }
 
     void send_command(std::initializer_list<string_array> params_array)
     {
-        check_connect();
         resp_.send_command(params_array);
         ++send_count_;
     }
 
     void send_command(std::initializer_list<czstring> params)
     {
-        check_connect();
         resp_.send_command(params);
         ++send_count_;
     }
 
-    reply get_reply()
+    reply get_one_reply()
     {
-        check_connect();
         --send_count_;
         return resp_.get_reply();
     }
@@ -98,39 +159,33 @@ public:
         reply_array arr;
         while (send_count_ > 0)
         {
-            arr.emplace_back(get_reply());
+            arr.emplace_back(get_one_reply());
         }
         return arr;
     }
 
-    size_t send_count() const noexcept
+    template<typename T>
+    T get_reply_as()
     {
-        return send_count_;
+        return reply_cast<T>(get_one_reply());
     }
 
-    czstring password() const noexcept
-    {
-        return password_;
-    }
+    size_t send_count() const noexcept { return send_count_; }
 
-    czstring username() const noexcept
-    {
-        return username_;
-    }
+    czstring password() const noexcept { return password_; }
 
-    unsigned database() const noexcept
-    {
-        return database_;
-    }
+    czstring username() const noexcept { return username_; }
 
-    void set_password(cref_string pwd) noexcept
+    unsigned database() const noexcept { return database_; }
+
+    void set_password(cref_string pwd)
     {
         password_ = pwd;
     }
 
-    void set_user(cref_string username) noexcept
+    void set_username(cref_string name)
     {
-        username_ = username;
+        username_ = name;
     }
 
     void set_database(unsigned db) noexcept
@@ -138,1204 +193,1253 @@ public:
         database_ = db;
     }
 
-    bool is_in_multi() const noexcept
-    {
-        return is_in_multi_;
-    }
+    bool is_in_multi() const noexcept { return is_in_multi_; }
 
-    bool is_in_watch() const noexcept
-    {
-        return is_in_watch_;
-    }
+    bool is_in_watch() const noexcept { return is_in_watch_; }
 
 //connection
 
-    virtual void auth(cref_string password) override
+    void auth(cref_string password) override final
     {
-        send_command({ cmd::connection::AUTH, password });
+        send_command({ command::AUTH, password });
         set_password(password);
     }
 
-    virtual void auth(cref_string username, cref_string password) override
+    void auth(cref_string username, cref_string password) override final
     {
-        send_command({ cmd::connection::AUTH, username, password });
+        send_command({ command::AUTH, username, password });
+        set_username(username);
         set_password(password);
     }
 
-    virtual void echo(cref_string message) override
+    void echo(cref_string message) override final
     {
-        send_command({ cmd::connection::ECHO, message });
+        send_command({ command::ECHO, message });
     }
 
-    virtual void ping() override
+    void ping() override final
     {
-        send_command({ cmd::connection::PING });
+        send_command({ command::PING });
     }
 
-    virtual void quit() override
+    void quit() override final
     {
-        send_command({ cmd::connection::QUIT });
+        send_command({ command::QUIT });
     }
 
-    virtual void select(unsigned index) override
+    void select(unsigned index) override final
     {
-        send_command({ cmd::connection::SELECT, std::to_string(index) });
+        send_command({ command::SELECT, std::to_string(index) });
         set_database(index);
     }
 
 //geo
 
-    virtual void geoadd(cref_string key, double longitude,
-        double latitude, cref_string member) override
+    void geoadd(cref_string key, double longitude,
+        double latitude, cref_string member) override final
     {
-        send_command({ cmd::geo::GEOADD, key,
+        send_command({ command::GEOADD, key,
             std::to_string(longitude), std::to_string(latitude), member });
     }
 
-    virtual void geoadd(cref_string key,
-        std::map<czstring, geo_coordinate> member_coordinate_map) override
+    void geoadd(cref_string key,
+        std::map<czstring, geo_coordinate> members_coordinates) override final
     {
-        string_array params = { cmd::geo::GEOADD ,key };
-        for (auto& o : member_coordinate_map)
+        string_array cmd_params = { command::GEOADD ,key };
+        for (auto& o : members_coordinates)
         {
-            params.emplace_back(std::to_string(o.second.longitude));
-            params.emplace_back(std::to_string(o.second.latitude));
-            params.emplace_back(o.first);
+            cmd_params.emplace_back(std::to_string(o.second.longitude));
+            cmd_params.emplace_back(std::to_string(o.second.latitude));
+            cmd_params.emplace_back(o.first);
         }
-        send_command(params);
+        send_command(cmd_params);
     }
 
-    virtual void geodist(cref_string key, cref_string member1,
-        cref_string member2, geo_unit unit) override
+    void geodist(cref_string key, cref_string member1,
+        cref_string member2, geo_unit unit) override final
     {
-        send_command({ cmd::geo::GEODIST, key, member1, member2,
+        send_command({ command::GEODIST, key, member1, member2,
             geo_unit_dict.at(unit) });
     }
 
-    virtual void geohash(cref_string key, cref_string_array members) override
+    void geohash(cref_string key, cref_string_array members) override final
     {
-        send_command({ cmd::geo::GEOHASH, key }, members);
+        send_command({ command::GEOHASH, key }, members);
     }
 
-    virtual void geopos(cref_string key, cref_string_array members) override
+    void geopos(cref_string key, cref_string_array members) override final
     {
-        send_command({ cmd::geo::GEOPOS, key }, members);
+        send_command({ command::GEOPOS, key }, members);
     }
 
-    virtual void georadius(cref_string key, double longitude, double latitude,
+    void georadius(cref_string key, double longitude, double latitude,
         double radius, geo_unit unit, const georadius_param& param,
-        const georadius_store_param& store_param) override
+        const georadius_store_param& store_param) override final
     {
-        send_command({ {cmd::geo::GEORADIUS, key, std::to_string(longitude),
+        send_command({ {command::GEORADIUS, key, std::to_string(longitude),
             std::to_string(latitude), std::to_string(radius),
             geo_unit_dict.at(unit)}, param.to_string_array(),
             store_param.to_string_array() });
     }
 
-    virtual void georadius_RO(cref_string key, double longitude, double latitude,
-        double radius, geo_unit unit, const georadius_param& param) override
+    void georadius_RO(cref_string key, double longitude, double latitude,
+        double radius, geo_unit unit, const georadius_param& param) override final
     {
-        send_command({ {cmd::geo::GEORADIUS_RO, key, std::to_string(longitude),
+        send_command({ {command::GEORADIUS_RO, key, std::to_string(longitude),
             std::to_string(latitude), std::to_string(radius),
             geo_unit_dict.at(unit)}, param.to_string_array() });
     }
 
-    virtual void georadiusbymember(cref_string key, cref_string member,
+    void georadiusbymember(cref_string key, cref_string member,
         double radius, geo_unit unit, const georadius_param& param,
-        const georadius_store_param& store_param) override
+        const georadius_store_param& store_param) override final
     {
-        send_command({ {cmd::geo::GEORADIUSBYMEMBER, key, member,
+        send_command({ {command::GEORADIUSBYMEMBER, key, member,
             std::to_string(radius), geo_unit_dict.at(unit)},
             param.to_string_array(), store_param.to_string_array() });
     }
 
-    virtual void georadiusbymember_RO(cref_string key, cref_string member,
-        double radius, geo_unit unit, const georadius_param& param) override
+    void georadiusbymember_RO(cref_string key, cref_string member,
+        double radius, geo_unit unit, const georadius_param& param) override final
     {
-        send_command({ {cmd::geo::GEORADIUSBYMEMBER_RO, key, member,
+        send_command({ {command::GEORADIUSBYMEMBER_RO, key, member,
             std::to_string(radius), geo_unit_dict.at(unit)},
             param.to_string_array() });
     }
 
 //hashes
 
-    virtual void hdel(cref_string key, cref_string_array fields) override
+    void hdel(cref_string key, cref_string_array fields) override final
     {
-        send_command({ cmd::hashes::HDEL }, fields);
+        send_command({ command::HDEL }, fields);
     }
 
-    virtual void hexists(cref_string key, cref_string field) override
+    void hexists(cref_string key, cref_string field) override final
     {
-        send_command({ cmd::hashes::HEXISTS, key, field });
+        send_command({ command::HEXISTS, key, field });
     }
 
-    virtual void hget(cref_string key, cref_string field) override
+    void hget(cref_string key, cref_string field) override final
     {
-        send_command({ cmd::hashes::HGET, key, field });
+        send_command({ command::HGET, key, field });
     }
 
-    virtual void hgetall(cref_string key) override
+    void hgetall(cref_string key) override final
     {
-        send_command({ cmd::hashes::HGET, key });
+        send_command({ command::HGET, key });
     }
 
-    virtual void hincrby(cref_string key, cref_string field,
-        czint increment) override
+    void hincrby(cref_string key, cref_string field,
+        czint increment) override final
     {
-        send_command({ cmd::hashes::HINCRBY, key, field,
+        send_command({ command::HINCRBY, key, field,
             std::to_string(increment) });
     }
 
-    virtual void hincrbyfloat(cref_string key, cref_string field,
-        double increment) override
+    void hincrbyfloat(cref_string key, cref_string field,
+        double increment) override final
     {
-        send_command({ cmd::hashes::HINCRBYFLOAT, key, field,
+        send_command({ command::HINCRBYFLOAT, key, field,
             std::to_string(increment) });
     }
 
-    virtual void hkeys(cref_string key) override
+    void hkeys(cref_string key) override final
     {
-        send_command({ cmd::hashes::HKEYS, key });
+        send_command({ command::HKEYS, key });
     }
 
-    virtual void hlen(cref_string key) override
+    void hlen(cref_string key) override final
     {
-        send_command({ cmd::hashes::HLEN, key });
+        send_command({ command::HLEN, key });
     }
 
-    virtual void hmget(cref_string key, cref_string_array fields) override
+    void hmget(cref_string key, cref_string_array fields) override final
     {
-        send_command({ cmd::hashes::HMGET, key }, fields);
+        send_command({ command::HMGET, key }, fields);
     }
 
-    virtual void hmset(cref_string key, cref_string_map field_value_map) override
+    void hmset(cref_string key, cref_string_map fields_values) override final
     {
-        string_array params = { cmd::hashes::HMSET, key };
-        for (auto& o : field_value_map)
-        {
-            params.emplace_back(o.first);
-            params.emplace_back(o.second);
-        }
-        send_command(params);
+        send_command({ command::HMSET, key }, to_string_array(fields_values));
     }
 
-    virtual void hscan(cref_string key, cref_string cursor,
-        const scan_param& param) override
+    void hscan(cref_string key, cref_string cursor,
+        const scan_param& param) override final
     {
-        send_command({ cmd::hashes::HSCAN, key, cursor },
+        send_command({ command::HSCAN, key, cursor },
             param.to_string_array());
     }
 
-    virtual void hset(cref_string key, cref_string field,
-        cref_string value) override
+    void hset(cref_string key, cref_string field,
+        cref_string value) override final
     {
-        send_command({ cmd::hashes::HSET, key, field, value });
+        send_command({ command::HSET, key, field, value });
     }
 
-    virtual void hsetnx(cref_string key, cref_string field,
-        cref_string value) override
+    void hsetnx(cref_string key, cref_string field,
+        cref_string value) override final
     {
-        send_command({ cmd::hashes::HSETNX, key, field, value });
+        send_command({ command::HSETNX, key, field, value });
     }
 
-    virtual void hstrlen(cref_string key, cref_string field) override
+    void hstrlen(cref_string key, cref_string field) override final
     {
-        send_command({ cmd::hashes::HSTRLEN, key, field });
+        send_command({ command::HSTRLEN, key, field });
     }
 
-    virtual void hvals(cref_string key) override
+    void hvals(cref_string key) override final
     {
-        send_command({ cmd::hashes::HVALS, key });
+        send_command({ command::HVALS, key });
     }
 
 //hyper_log_log
-    virtual void pfadd(cref_string key, cref_string_array elements) override
+    void pfadd(cref_string key, cref_string_array elements) override final
     {
-        send_command({ cmd::hyper_log_log::PFADD, key }, elements);
+        send_command({ command::PFADD, key }, elements);
     }
 
-    virtual void pfcount(cref_string_array keys) override
+    void pfcount(cref_string key) override final
     {
-        send_command({ cmd::hyper_log_log::PFCOUNT }, keys);
+        send_command({ command::PFCOUNT, key });
     }
 
-    virtual void pfmerge(cref_string destkey, cref_string_array sourcekeys) override
+    void pfcount(cref_string_array keys) override final
     {
-        send_command({ cmd::hyper_log_log::PFMERGE, destkey }, sourcekeys);
+        send_command({ command::PFCOUNT }, keys);
+    }
+
+    void pfmerge(cref_string destkey, cref_string_array sourcekeys) override final
+    {
+        send_command({ command::PFMERGE, destkey }, sourcekeys);
     }
 
 //keys
 
-    virtual void del(cref_string_array keys) override
+    void del(cref_string key) override final
     {
-        send_command({ cmd::keys::DEL }, keys);
+        send_command({ command::DEL, key });
     }
 
-    virtual void dump(cref_string key) override
+    void del(cref_string_array keys) override final
     {
-        send_command({ cmd::keys::DUMP, key });
+        send_command({ command::DEL }, keys);
     }
 
-    virtual void exists(cref_string key) override
+    void dump(cref_string key) override final
     {
-        send_command({ cmd::keys::EXISTS, key });
+        send_command({ command::DUMP, key });
     }
 
-    virtual void expire(cref_string key, czint seconds) override
+    void exists(cref_string key) override final
     {
-        send_command({ cmd::keys::EXPIRE, key, std::to_string(seconds) });
+        send_command({ command::EXISTS, key });
     }
 
-    virtual void expireat(cref_string key, czint timestamp) override
+    void expire(cref_string key, czint seconds) override final
     {
-        send_command({ cmd::keys::EXPIREAT, key, std::to_string(timestamp) });
+        send_command({ command::EXPIRE, key, std::to_string(seconds) });
     }
 
-    virtual void keys(cref_string pattern) override
+    void expireat(cref_string key, czint timestamp) override final
     {
-        send_command({ cmd::keys::KEYS, pattern });
+        send_command({ command::EXPIREAT, key, std::to_string(timestamp) });
     }
 
-    virtual void migrate(cref_string host, cref_string port, cref_string key,
-        unsigned destination_db, czint timeout, const migrate_param& param) override
+    void keys(cref_string pattern) override final
     {
-        send_command({ cmd::keys::MIGRATE, host, port, key,
+        send_command({ command::KEYS, pattern });
+    }
+
+    void migrate(cref_string host, cref_string port, cref_string key,
+        unsigned destination_db, czint timeout, const migrate_param& param) override final
+    {
+        send_command({ command::MIGRATE, host, port, key,
             std::to_string(destination_db), std::to_string(timeout) },
             param.to_string_array());
     }
 
-    virtual void migrate(cref_string host, cref_string port,
+    void migrate(cref_string host, cref_string port,
         unsigned destination_db, czint timeout, const migrate_param& param,
-        cref_string_array keys) override
+        cref_string_array keys) override final
     {
-        send_command({ {cmd::keys::MIGRATE, host, port, "",
+        send_command({ {command::MIGRATE, host, port, "",
             std::to_string(destination_db), std::to_string(timeout)},
-            param.to_string_array(), {kwd::KEYS}, keys });
+            param.to_string_array(), {keyword::KEYS}, keys });
     }
 
-    virtual void move(cref_string key, unsigned db) override
+    void move(cref_string key, unsigned db) override final
     {
-        send_command({ cmd::keys::MOVE, key, std::to_string(db) });
+        send_command({ command::MOVE, key, std::to_string(db) });
     }
 
-    virtual void object_refcount(cref_string key) override
+    void object_refcount(cref_string key) override final
     {
-        send_command({ cmd::keys::OBJECT, kwd::REFCOUNT, key });
+        send_command({ command::OBJECT, keyword::REFCOUNT, key });
     }
 
-    virtual void object_encoding(cref_string key) override
+    void object_encoding(cref_string key) override final
     {
-        send_command({ cmd::keys::OBJECT, kwd::ENCODING, key });
+        send_command({ command::OBJECT, keyword::ENCODING, key });
     }
 
-    virtual void object_idletime(cref_string key) override
+    void object_idletime(cref_string key) override final
     {
-        send_command({ cmd::keys::OBJECT, kwd::IDLETIME, key });
+        send_command({ command::OBJECT, keyword::IDLETIME, key });
     }
 
-    virtual void object_freq(cref_string key) override
+    void object_freq(cref_string key) override final
     {
-        send_command({ cmd::keys::OBJECT, kwd::FREQ, key });
+        send_command({ command::OBJECT, keyword::FREQ, key });
     }
 
-    virtual void object_help() override
+    void object_help() override final
     {
-        send_command({ cmd::keys::OBJECT, kwd::HELP });
+        send_command({ command::OBJECT, keyword::HELP });
     }
 
-    virtual void persist(cref_string key) override
+    void persist(cref_string key) override final
     {
-        send_command({ cmd::keys::PERSIST, key });
+        send_command({ command::PERSIST, key });
     }
 
-    virtual void pexpire(cref_string key, czint milliseconds) override
+    void pexpire(cref_string key, czint milliseconds) override final
     {
-        send_command({ cmd::keys::PEXPIRE, key, std::to_string(milliseconds) });
+        send_command({ command::PEXPIRE, key, std::to_string(milliseconds) });
     }
 
-    virtual void pexpireat(cref_string key, czint milliseconds_timestamp) override
+    void pexpireat(cref_string key, czint milliseconds_timestamp) override final
     {
-        send_command({ cmd::keys::PEXPIREAT, key,
+        send_command({ command::PEXPIREAT, key,
             std::to_string(milliseconds_timestamp) });
     }
 
-    virtual void pttl(cref_string key) override
+    void pttl(cref_string key) override final
     {
-        send_command({ cmd::keys::PTTL, key });
+        send_command({ command::PTTL, key });
     }
 
-    virtual void randomkey() override
+    void randomkey() override final
     {
-        send_command({ cmd::keys::RANDOMKEY });
+        send_command({ command::RANDOMKEY });
     }
 
-    virtual void rename(cref_string key, cref_string new_key) override
+    void rename(cref_string key, cref_string new_key) override final
     {
-        send_command({ cmd::keys::RENAME, key, new_key });
+        send_command({ command::RENAME, key, new_key });
     }
 
-    virtual void renamenx(cref_string key, cref_string new_key) override
+    void renamenx(cref_string key, cref_string new_key) override final
     {
-        send_command({ cmd::keys::RENAMENX, key, new_key });
+        send_command({ command::RENAMENX, key, new_key });
     }
 
-    virtual void restore(cref_string key, czint ttl,
-        cref_string serialized_value, const restore_param& param) override
+    void restore(cref_string key, czint ttl,
+        cref_string serialized_value, const restore_param& param) override final
     {
-        send_command({ cmd::keys::RESTORE, key, std::to_string(ttl),
+        send_command({ command::RESTORE, key, std::to_string(ttl),
             serialized_value }, param.to_string_array());
     }
 
-    virtual void scan(cref_string cursor, const scan_param& param) override
+    void scan(cref_string cursor, const scan_param& param) override final
     {
-        send_command({ cmd::keys::PERSIST, cursor }, param.to_string_array());
+        send_command({ command::PERSIST, cursor }, param.to_string_array());
     }
 
-    virtual void scan(cref_string cursor, const scan_param& param,
-        redis_key_type type) override
+    void scan(cref_string cursor, const scan_param& param,
+        redis_key_type type) override final
     {
-        send_command({ {cmd::keys::PERSIST, cursor},
+        send_command({ {command::PERSIST, cursor},
             param.to_string_array(),
-            {kwd::TYPE, redis_key_type_dict.at(type)} });
+            {keyword::TYPE, redis_key_type_dict.at(type)} });
     }
 
-    virtual void sort(cref_string key, const sort_param& param) override
+    void sort(cref_string key, const sort_param& param) override final
     {
-        send_command({ cmd::keys::SORT, key }, param.to_string_array());
+        send_command({ command::SORT, key }, param.to_string_array());
     }
 
-    virtual void touch(cref_string_array keys) override
+    void sort(cref_string key, const sort_param& param, cref_string destination) override final
     {
-        send_command({ cmd::keys::TOUCH }, keys);
+        send_command({ {command::SORT, key}, param.to_string_array(),
+            {keyword::STORE, destination} });
     }
 
-    virtual void ttl(cref_string key) override
+    void touch(cref_string key) override final
     {
-        send_command({ cmd::keys::TTL, key });
+        send_command({ command::TOUCH, key });
     }
 
-    virtual void type(cref_string key) override
+    void touch(cref_string_array keys) override final
     {
-        send_command({ cmd::keys::TYPE, key });
+        send_command({ command::TOUCH }, keys);
     }
 
-    virtual void unlink(cref_string_array keys) override
+    void ttl(cref_string key) override final
     {
-        send_command({ cmd::keys::UNLINK }, keys);
+        send_command({ command::TTL, key });
     }
 
-    virtual void wait(unsigned numreplicas, czint timeout) override
+    void type(cref_string key) override final
     {
-        send_command({ cmd::keys::WAIT, std::to_string(numreplicas),
+        send_command({ command::TYPE, key });
+    }
+
+    void unlink(cref_string key) override final
+    {
+        send_command({ command::UNLINK, key });
+    }
+
+    void unlink(cref_string_array keys) override final
+    {
+        send_command({ command::UNLINK }, keys);
+    }
+
+    void wait(unsigned numreplicas, czint timeout) override final
+    {
+        send_command({ command::WAIT, std::to_string(numreplicas),
             std::to_string(timeout) });
     }
 
 //lists
 
-    virtual void blpop(cref_string_array keys, czint timeout) override
+    void blpop(cref_string key, czint timeout) override final
     {
-        send_command({{ cmd::lists::BLPOP }, keys, { std::to_string(timeout) }});
+        send_command({ command::BLPOP, key, std::to_string(timeout) });
     }
 
-    virtual void brpop(cref_string_array keys, czint timeout) override
+    void blpop(cref_string_array keys, czint timeout) override final
     {
-        send_command({ { cmd::lists::BRPOP }, keys, { std::to_string(timeout) } });
+        send_command({{ command::BLPOP }, keys, { std::to_string(timeout) }});
     }
 
-    virtual void brpoplpush(cref_string source, cref_string destination,
-        czint timeout) override
+    void brpop(cref_string key, czint timeout) override final
     {
-        send_command({ cmd::lists::BRPOPLPUSH, source, destination,
+        send_command({ command::BRPOP, key, std::to_string(timeout) });
+    }
+
+    void brpop(cref_string_array keys, czint timeout) override final
+    {
+        send_command({ { command::BRPOP }, keys, { std::to_string(timeout) } });
+    }
+
+    void brpoplpush(cref_string source, cref_string destination,
+        czint timeout) override final
+    {
+        send_command({ command::BRPOPLPUSH, source, destination,
             std::to_string(timeout) });
     }
 
-    virtual void lindex(cref_string key, czint index) override
+    void lindex(cref_string key, czint index) override final
     {
-        send_command({ cmd::lists::LINDEX, std::to_string(index) });
+        send_command({ command::LINDEX, std::to_string(index) });
     }
 
-    virtual void linsert(cref_string key, insert_place place,
-        cref_string pivot, cref_string value) override
+    void linsert(cref_string key, insert_place place,
+        cref_string pivot, cref_string value) override final
     {
-        send_command({ cmd::lists::LINSERT, insert_place_dict.at(place),
+        send_command({ command::LINSERT, insert_place_dict.at(place),
             pivot, value });
     }
 
-    virtual void llen(cref_string key) override
+    void llen(cref_string key) override final
     {
-        send_command({ cmd::lists::LLEN, key });
+        send_command({ command::LLEN, key });
     }
 
-    virtual void lpop(cref_string key) override
+    void lpop(cref_string key) override final
     {
-        send_command({ cmd::lists::LPOP, key });
+        send_command({ command::LPOP, key });
     }
 
-    virtual void lpush(cref_string key, cref_string_array elements) override
+    void lpush(cref_string key, cref_string_array elements) override final
     {
-        send_command({ cmd::lists::LPUSH, key }, elements);
+        send_command({ command::LPUSH, key }, elements);
     }
 
-    virtual void lpushx(cref_string key, cref_string_array elements) override
+    void lpushx(cref_string key, cref_string_array elements) override final
     {
-        send_command({ cmd::lists::LPUSHX, key }, elements);
+        send_command({ command::LPUSHX, key }, elements);
     }
 
-    virtual void lrange(cref_string key, czint start, czint stop) override
+    void lrange(cref_string key, czint start, czint stop) override final
     {
-        send_command({ cmd::lists::LRANGE, key,
+        send_command({ command::LRANGE, key,
             std::to_string(start), std::to_string(stop) });
     }
 
-    virtual void lrem(cref_string key, czint count, cref_string element) override
+    void lrem(cref_string key, czint count, cref_string element) override final
     {
-        send_command({ cmd::lists::LREM, key, std::to_string(count), element });
+        send_command({ command::LREM, key, std::to_string(count), element });
     }
 
-    virtual void lset(cref_string key, czint index, cref_string element) override
+    void lset(cref_string key, czint index, cref_string element) override final
     {
-        send_command({ cmd::lists::LSET, key, std::to_string(index), element });
+        send_command({ command::LSET, key, std::to_string(index), element });
     }
 
-    virtual void ltrim(cref_string key, czint start, czint stop) override
+    void ltrim(cref_string key, czint start, czint stop) override final
     {
-        send_command({ cmd::lists::LTRIM, key,
+        send_command({ command::LTRIM, key,
             std::to_string(start), std::to_string(stop) });
     }
 
-    virtual void rpop(cref_string key) override
+    void rpop(cref_string key) override final
     {
-        send_command({ cmd::lists::RPOP, key });
+        send_command({ command::RPOP, key });
     }
 
-    virtual void rpoplpush(cref_string source, cref_string destination) override
+    void rpoplpush(cref_string source, cref_string destination) override final
     {
-        send_command({ cmd::lists::BRPOPLPUSH, source, destination });
+        send_command({ command::BRPOPLPUSH, source, destination });
     }
 
-    virtual void rpush(cref_string key, cref_string_array elements) override
+    void rpush(cref_string key, cref_string_array elements) override final
     {
-        send_command({ cmd::lists::RPUSH, key }, elements);
+        send_command({ command::RPUSH, key }, elements);
     }
 
-    virtual void rpushx(cref_string key, cref_string_array elements) override
+    void rpushx(cref_string key, cref_string_array elements) override final
     {
-        send_command({ cmd::lists::RPUSHX, key }, elements);
+        send_command({ command::RPUSHX, key }, elements);
     }
 
 //scripting
 
-    virtual void eval(cref_string script,
-        cref_string_array keys, cref_string_array args) override
+    void eval(cref_string script,
+        cref_string_array keys, cref_string_array args) override final
     {
-        send_command({{ cmd::scripting::EVAL, script,
+        send_command({{ command::EVAL, script,
             std::to_string(keys.size()) }, keys, args});
     }
 
-    virtual void evalsha(cref_string sha1,
-        cref_string_array keys, cref_string_array args) override
+    void evalsha(cref_string sha1,
+        cref_string_array keys, cref_string_array args) override final
     {
-        send_command({ { cmd::scripting::EVALSHA, sha1,
+        send_command({ { command::EVALSHA, sha1,
             std::to_string(keys.size()) }, keys, args });
     }
 
-    virtual void script_exists(cref_string_array sha1s) override
+    void script_exists(cref_string sha1) override final
     {
-        send_command({ cmd::scripting::SCRIPT, kwd::EXISTS }, sha1s);
+        send_command({ command::SCRIPT, keyword::EXISTS, sha1 });
     }
 
-    virtual void script_flush() override
+    void script_exists(cref_string_array sha1s) override final
     {
-        send_command({ cmd::scripting::SCRIPT, kwd::FLUSH });
+        send_command({ command::SCRIPT, keyword::EXISTS }, sha1s);
     }
 
-    virtual void script_kill() override
+    void script_flush() override final
     {
-        send_command({ cmd::scripting::SCRIPT, kwd::KILL });
+        send_command({ command::SCRIPT, keyword::FLUSH });
     }
 
-    virtual void script_load(cref_string script) override
+    void script_kill() override final
     {
-        send_command({ cmd::scripting::SCRIPT, kwd::LOAD, script });
+        send_command({ command::SCRIPT, keyword::KILL });
+    }
+
+    void script_load(cref_string script) override final
+    {
+        send_command({ command::SCRIPT, keyword::LOAD, script });
     }
 
 //sets
 
-    virtual void sadd(cref_string key, cref_string_array members) override
+    void sadd(cref_string key, cref_string_array members) override final
     {
-        send_command({ cmd::sets::SADD, key }, members);
+        send_command({ command::SADD, key }, members);
     }
 
-    virtual void scard(cref_string key) override
+    void scard(cref_string key) override final
     {
-        send_command({ cmd::sets::SCARD, key });
+        send_command({ command::SCARD, key });
     }
 
-    virtual void sdiff(cref_string_array keys) override
+    void sdiff(cref_string_array keys) override final
     {
-        send_command({ cmd::sets::SDIFF }, keys);
+        send_command({ command::SDIFF }, keys);
     }
 
-    virtual void sdiffstore(cref_string destination, cref_string_array keys) override
+    void sdiffstore(cref_string destination, cref_string_array keys) override final
     {
-        send_command({ cmd::sets::SADD, destination }, keys);
+        send_command({ command::SADD, destination }, keys);
     }
 
-    virtual void sinter(cref_string_array keys) override
+    void sinter(cref_string_array keys) override final
     {
-        send_command({ cmd::sets::SINTER }, keys);
+        send_command({ command::SINTER }, keys);
     }
 
-    virtual void sinterstore(cref_string destination, cref_string_array keys) override
+    void sinterstore(cref_string destination, cref_string_array keys) override final
     {
-        send_command({ cmd::sets::SINTERSTORE, destination }, keys);
+        send_command({ command::SINTERSTORE, destination }, keys);
     }
 
-    virtual void sismember(cref_string key, cref_string member) override
+    void sismember(cref_string key, cref_string member) override final
     {
-        send_command({ cmd::sets::SISMEMBER, key, member });
+        send_command({ command::SISMEMBER, key, member });
     }
 
-    virtual void smembers(cref_string key) override
+    void smembers(cref_string key) override final
     {
-        send_command({ cmd::sets::SMEMBERS, key });
+        send_command({ command::SMEMBERS, key });
     }
 
-    virtual void smove(cref_string source, cref_string destination,
-        cref_string member) override
+    void smove(cref_string source, cref_string destination,
+        cref_string member) override final
     {
-        send_command({ cmd::sets::SMOVE, source, destination, member });
+        send_command({ command::SMOVE, source, destination, member });
     }
 
-    virtual void spop(cref_string key) override
+    void spop(cref_string key) override final
     {
-        send_command({ cmd::sets::SPOP, key });
+        send_command({ command::SPOP, key });
     }
 
-    virtual void spop(cref_string key, czint count) override
+    void spop(cref_string key, czint count) override final
     {
-        send_command({ cmd::sets::SPOP, key,
-            kwd::COUNT, std::to_string(count) });
+        send_command({ command::SPOP, key,
+            keyword::COUNT, std::to_string(count) });
     }
 
-    virtual void srandmember(cref_string key) override
+    void srandmember(cref_string key) override final
     {
-        send_command({ cmd::sets::SRANDMEMBER, key });
+        send_command({ command::SRANDMEMBER, key });
     }
 
-    virtual void srandmember(cref_string key, czint count) override
+    void srandmember(cref_string key, czint count) override final
     {
-        send_command({ cmd::sets::SRANDMEMBER, key,
-            kwd::COUNT, std::to_string(count) });
+        send_command({ command::SRANDMEMBER, key,
+            keyword::COUNT, std::to_string(count) });
     }
 
-    virtual void srem(cref_string key, cref_string_array members) override
+    void srem(cref_string key, cref_string_array members) override final
     {
-        send_command({ cmd::sets::SREM, key }, members);
+        send_command({ command::SREM, key }, members);
     }
 
-    virtual void sscan(cref_string key, cref_string cursor,
-        const scan_param& param) override
+    void sscan(cref_string key, cref_string cursor,
+        const scan_param& param) override final
     {
-        send_command({ cmd::sets::SSCAN, key, cursor },
+        send_command({ command::SSCAN, key, cursor },
             param.to_string_array());
     }
 
-    virtual void sunion(cref_string_array keys) override
+    void sunion(cref_string_array keys) override final
     {
-        send_command({ cmd::sets::SUNION }, keys);
+        send_command({ command::SUNION }, keys);
     }
 
-    virtual void sunionstore(cref_string destination, cref_string_array keys) override
+    void sunionstore(cref_string destination, cref_string_array keys) override final
     {
-        send_command({ cmd::sets::SUNIONSTORE, destination }, keys);
+        send_command({ command::SUNIONSTORE, destination }, keys);
     }
 
 //sorted_sets
 
-    virtual void bzpopmax(cref_string_array keys, czint timeout) override
+    void bzpopmax(cref_string key, czint timeout) override final
     {
-        send_command({ {cmd::sorted_sets::BZPOPMIN},
-            keys, {std::to_string(timeout)} });
+        send_command({ command::BZPOPMIN, key,std::to_string(timeout) });
     }
 
-    virtual void bzpopmin(cref_string_array keys, czint timeout) override
+    void bzpopmax(cref_string_array keys, czint timeout) override final
     {
-        send_command({ {cmd::sorted_sets::BZPOPMIN},
-            keys, {std::to_string(timeout)} });
+        send_command({ {command::BZPOPMIN}, keys, {std::to_string(timeout)} });
     }
 
-    virtual void zadd(cref_string key, const zadd_param& param,
-        cref_string_map member_score_map) override
+    void bzpopmin(cref_string key, czint timeout) override final
     {
-        string_array cmd_params = { cmd::sorted_sets::ZADD, key };
-        param.append_params(cmd_params);
-        for (auto& o : member_score_map)
-        {
-            cmd_params.emplace_back(o.second);
-            cmd_params.emplace_back(o.first);
-        }
-        send_command(cmd_params);
+        send_command({ command::BZPOPMIN, key,std::to_string(timeout) });
     }
 
-    virtual void zcard(cref_string key) override
+    void bzpopmin(cref_string_array keys, czint timeout) override final
     {
-        send_command({ cmd::sorted_sets::ZCARD, key });
+        send_command({ {command::BZPOPMIN}, keys, {std::to_string(timeout)} });
     }
 
-    virtual void zcount(cref_string key, cref_string min, cref_string max) override
+    void zadd(cref_string key, const zadd_param& param,
+        cref_string_map members_scores) override final
     {
-        send_command({ cmd::sorted_sets::ZCOUNT, key, min, max });
+        send_command({ {command::ZADD, key},
+            param.to_string_array(), to_string_array(members_scores, true) });
     }
 
-    virtual void zincrby(cref_string key, cref_string increment,
-        cref_string member) override
+    void zcard(cref_string key) override final
     {
-        send_command({ cmd::sorted_sets::ZINCRBY, key, increment, member });
+        send_command({ command::ZCARD, key });
     }
 
-    virtual void zinterstore(cref_string destination, cref_string_array keys,
-        const z_param& param) override
+    void zcount(cref_string key, cref_string min, cref_string max) override final
     {
-        send_command({{ cmd::sorted_sets::ZINTERSTORE, destination,
+        send_command({ command::ZCOUNT, key, min, max });
+    }
+
+    void zincrby(cref_string key, cref_string increment,
+        cref_string member) override final
+    {
+        send_command({ command::ZINCRBY, key, increment, member });
+    }
+
+    void zinterstore(cref_string destination, cref_string_array keys,
+        const z_param& param) override final
+    {
+        send_command({{ command::ZINTERSTORE, destination,
             std::to_string(keys.size()) }, keys, param.to_string_array()});
     }
 
-    virtual void zlexcount(cref_string key, cref_string min, cref_string max) override
+    void zlexcount(cref_string key, cref_string min, cref_string max) override final
     {
-        send_command({ cmd::sorted_sets::ZLEXCOUNT, key, min, max });
+        send_command({ command::ZLEXCOUNT, key, min, max });
     }
 
-    virtual void zpopmax(cref_string key) override
+    void zpopmax(cref_string key) override final
     {
-        send_command({ cmd::sorted_sets::ZPOPMAX, key });
+        send_command({ command::ZPOPMAX, key });
     }
 
-    virtual void zpopmax(cref_string key, czint count) override
+    void zpopmax(cref_string key, czint count) override final
     {
-        send_command({ cmd::sorted_sets::ZPOPMAX, key,
+        send_command({ command::ZPOPMAX, key,
             std::to_string(count) });
     }
 
-    virtual void zpopmin(cref_string key) override
+    void zpopmin(cref_string key) override final
     {
-        send_command({ cmd::sorted_sets::ZPOPMIN, key });
+        send_command({ command::ZPOPMIN, key });
     }
 
-    virtual void zpopmin(cref_string key, czint count) override
+    void zpopmin(cref_string key, czint count) override final
     {
-        send_command({ cmd::sorted_sets::ZPOPMIN, key,
+        send_command({ command::ZPOPMIN, key,
             std::to_string(count) });
     }
 
-    virtual void zrange(cref_string key, czint start, czint stop,
-        bool withscores) override
+    void zrange(cref_string key, czint start, czint stop,
+        bool withscores) override final
     {
-        string_array cmd_params = { cmd::sorted_sets::ZRANGE, key,
+        string_array cmd_params = { command::ZRANGE, key,
             std::to_string(start), std::to_string(stop) };
         if (withscores)
-            cmd_params.emplace_back(kwd::WITHSCORES);
+            cmd_params.emplace_back(keyword::WITHSCORES);
         send_command(cmd_params);
     }
 
-    virtual void zrangebylex(cref_string key, cref_string max, cref_string min) override
+    void zrangebylex(cref_string key, cref_string max, cref_string min) override final
     {
-        send_command({ cmd::sorted_sets::ZRANGEBYLEX, key, max, min });
+        send_command({ command::ZRANGEBYLEX, key, max, min });
     }
 
-    virtual void zrangebylex(cref_string key, cref_string max, cref_string min,
-        czint offset, czint count) override
+    void zrangebylex(cref_string key, cref_string max, cref_string min,
+        czint offset, czint count) override final
     {
-        send_command({ cmd::sorted_sets::ZRANGEBYLEX, key, max, min,
-            kwd::LIMIT, std::to_string(offset), std::to_string(count) });
+        send_command({ command::ZRANGEBYLEX, key, max, min,
+            keyword::LIMIT, std::to_string(offset), std::to_string(count) });
     }
 
-    virtual void zrangebyscore(cref_string key, cref_string min, cref_string max,
-        bool withscores) override
+    void zrangebyscore(cref_string key, cref_string min, cref_string max,
+        bool withscores) override final
     {
-        string_array cmd_params = { cmd::sorted_sets::ZRANGEBYSCORE, key,
+        string_array cmd_params = { command::ZRANGEBYSCORE, key,
             min, max };
         if (withscores)
-            cmd_params.emplace_back(kwd::WITHSCORES);
+            cmd_params.emplace_back(keyword::WITHSCORES);
         send_command(cmd_params);
     }
 
-    virtual void zrangebyscore(cref_string key, cref_string min, cref_string max,
-        bool withscores, czint offset, czint count) override
+    void zrangebyscore(cref_string key, cref_string min, cref_string max,
+        bool withscores, czint offset, czint count) override final
     {
-        string_array cmd_params = { cmd::sorted_sets::ZRANGEBYSCORE, key,
+        string_array cmd_params = { command::ZRANGEBYSCORE, key,
             min, max };
         if (withscores)
-            cmd_params.emplace_back(kwd::WITHSCORES);
-        cmd_params.emplace_back(kwd::LIMIT);
+            cmd_params.emplace_back(keyword::WITHSCORES);
+        cmd_params.emplace_back(keyword::LIMIT);
         cmd_params.emplace_back(std::to_string(offset));
         cmd_params.emplace_back(std::to_string(count));
         send_command(cmd_params);
     }
 
-    virtual void zrank(cref_string key, cref_string member) override
+    void zrank(cref_string key, cref_string member) override final
     {
-        send_command({ cmd::sorted_sets::ZRANK, key, member });
+        send_command({ command::ZRANK, key, member });
     }
 
-    virtual void zrem(cref_string key, cref_string_array members) override
+    void zrem(cref_string key, cref_string_array members) override final
     {
-        send_command({ cmd::sorted_sets::ZREM, key }, members);
+        send_command({ command::ZREM, key }, members);
     }
 
-    virtual void zremrangebylex(cref_string key,
-        cref_string min, cref_string max) override
+    void zremrangebylex(cref_string key,
+        cref_string min, cref_string max) override final
     {
-        send_command({ cmd::sorted_sets::ZREMRANGEBYLEX, key, min, max });
+        send_command({ command::ZREMRANGEBYLEX, key, min, max });
     }
 
-    virtual void zremrangebyrank(cref_string key,
-        czint start, czint stop) override
+    void zremrangebyrank(cref_string key,
+        czint start, czint stop) override final
     {
-        send_command({ cmd::sorted_sets::ZREMRANGEBYRANK, key,
+        send_command({ command::ZREMRANGEBYRANK, key,
             std::to_string(start), std::to_string(stop) });
     }
 
-    virtual void zremrangebyscore(cref_string key,
-        cref_string min, cref_string max) override
+    void zremrangebyscore(cref_string key,
+        cref_string min, cref_string max) override final
     {
-        send_command({ cmd::sorted_sets::ZREMRANGEBYSCORE, key, min, max });
+        send_command({ command::ZREMRANGEBYSCORE, key, min, max });
     }
 
-    virtual void zrevrange(cref_string key, czint start, czint stop,
-        bool withscores) override
+    void zrevrange(cref_string key, czint start, czint stop,
+        bool withscores) override final
     {
-        string_array cmd_params = { cmd::sorted_sets::ZREVRANGE, key,
+        string_array cmd_params = { command::ZREVRANGE, key,
             std::to_string(start), std::to_string(stop) };
         if (withscores)
-            cmd_params.emplace_back(kwd::WITHSCORES);
+            cmd_params.emplace_back(keyword::WITHSCORES);
         send_command(cmd_params);
     }
 
-    virtual void zrevrangebylex(cref_string key,
-        cref_string max, cref_string min) override
+    void zrevrangebylex(cref_string key,
+        cref_string max, cref_string min) override final
     {
-        send_command({ cmd::sorted_sets::ZREVRANGEBYLEX, key, max, min });
+        send_command({ command::ZREVRANGEBYLEX, key, max, min });
     }
 
-    virtual void zrevrangebylex(cref_string key, cref_string max, cref_string min,
-        czint offset, czint count) override
+    void zrevrangebylex(cref_string key, cref_string max, cref_string min,
+        czint offset, czint count) override final
     {
-        send_command({ cmd::sorted_sets::ZREVRANGEBYLEX, key, max, min,
-            kwd::LIMIT, std::to_string(offset), std::to_string(count) });
+        send_command({ command::ZREVRANGEBYLEX, key, max, min,
+            keyword::LIMIT, std::to_string(offset), std::to_string(count) });
     }
 
-    virtual void zrevrangebyscore(cref_string key, cref_string min, cref_string max,
-        bool withscores) override
+    void zrevrangebyscore(cref_string key, cref_string min, cref_string max,
+        bool withscores) override final
     {
-        string_array cmd_params = { cmd::sorted_sets::ZREVRANGEBYSCORE, key,
+        string_array cmd_params = { command::ZREVRANGEBYSCORE, key,
             min, max };
         if (withscores)
-            cmd_params.emplace_back(kwd::WITHSCORES);
+            cmd_params.emplace_back(keyword::WITHSCORES);
         send_command(cmd_params);
     }
 
-    virtual void zrevrangebyscore(cref_string key, cref_string min, cref_string max,
-        bool withscores, czint offset, czint count) override
+    void zrevrangebyscore(cref_string key, cref_string min, cref_string max,
+        bool withscores, czint offset, czint count) override final
     {
-        string_array cmd_params = { cmd::sorted_sets::ZREVRANGEBYSCORE, key,
+        string_array cmd_params = { command::ZREVRANGEBYSCORE, key,
             min, max };
         if (withscores)
-            cmd_params.emplace_back(kwd::WITHSCORES);
-        cmd_params.emplace_back(kwd::LIMIT);
+            cmd_params.emplace_back(keyword::WITHSCORES);
+        cmd_params.emplace_back(keyword::LIMIT);
         cmd_params.emplace_back(std::to_string(offset));
         cmd_params.emplace_back(std::to_string(count));
         send_command(cmd_params);
     }
 
-    virtual void zrevrank(cref_string key, cref_string member) override
+    void zrevrank(cref_string key, cref_string member) override final
     {
-        send_command({ cmd::sorted_sets::ZREVRANK, key, member });
+        send_command({ command::ZREVRANK, key, member });
     }
 
-    virtual void zscan(cref_string key, cref_string cursor,
-        const scan_param& param) override
+    void zscan(cref_string key, cref_string cursor,
+        const scan_param& param) override final
     {
-        send_command({ cmd::sorted_sets::ZSCAN, key, cursor },
+        send_command({ command::ZSCAN, key, cursor },
             param.to_string_array());
     }
 
-    virtual void zscore(cref_string key, cref_string member) override
+    void zscore(cref_string key, cref_string member) override final
     {
-        send_command({ cmd::sorted_sets::ZSCORE, key, member });
+        send_command({ command::ZSCORE, key, member });
     }
 
-    virtual void zunionstore(cref_string destination, cref_string_array keys,
-        const z_param& param) override
+    void zunionstore(cref_string destination, cref_string_array keys,
+        const z_param& param) override final
     {
-        send_command({ { cmd::sorted_sets::ZUNIONSTORE, destination,
+        send_command({ { command::ZUNIONSTORE, destination,
             std::to_string(keys.size()) }, keys, param.to_string_array() });
     }
 
 //streams
 
-    virtual void xack(cref_string key, cref_string group,
-        cref_stream_id_array ids) override
+    void xack(cref_string key, cref_string group,
+        cref_stream_id_array ids) override final
     {
-        send_command({ cmd::streams::XACK, key, group },
-            stream_id_array_to_string_array(ids));
+        send_command({ command::XACK, key, group },
+            to_string_array(ids));
     }
 
-    virtual void xadd(cref_string key, const xadd_param param,
-        cref_string id, cref_string_map field_value_map) override
+    void xadd(cref_string key, const xadd_param param,
+        cref_string id, cref_string_map fields_values) override final
     {
-        string_array cmd_params = { cmd::streams::XADD, key };
-        param.append_params(cmd_params);
-        cmd_params.emplace_back(id);
-        for (auto& o : field_value_map)
-        {
-            cmd_params.emplace_back(o.first);
-            cmd_params.emplace_back(o.second);
-        }
-        send_command(cmd_params);
+        send_command({ {command::XADD, key}, param.to_string_array(),
+            {id}, to_string_array(fields_values) });
     }
 
-    virtual void xclaim(cref_string key, cref_string group, cref_string consumer,
+    void xclaim(cref_string key, cref_string group, cref_string consumer,
         czint min_idle_time, cref_stream_id_array ids,
-        const xclaim_param& param) override
+        const xclaim_param& param) override final
     {
-        send_command({ {cmd::streams::XCLAIM, key, group, consumer,
+        send_command({ {command::XCLAIM, key, group, consumer,
             std::to_string(min_idle_time)},
-            stream_id_array_to_string_array(ids), param.to_string_array() });
+            to_string_array(ids), param.to_string_array() });
     }
 
-    virtual void xdel(cref_string key, cref_stream_id_array ids) override
+    void xdel(cref_string key, cref_stream_id_array ids) override final
     {
-        send_command({ cmd::streams::XDEL, key },
-            stream_id_array_to_string_array(ids));
+        send_command({ command::XDEL, key },
+            to_string_array(ids));
     }
 
-    virtual void xgroup_create(cref_string key, cref_string groupname,
-        cref_string id, bool mkstream) override
+    void xgroup_create(cref_string key, cref_string groupname,
+        cref_string id, bool mkstream) override final
     {
-        string_array cmd_params = { cmd::streams::XGROUP, kwd::CREATE,
+        string_array cmd_params = { command::XGROUP, keyword::CREATE,
             key, groupname, id };
         if (mkstream)
-            cmd_params.emplace_back(kwd::MKSTREAM);
+            cmd_params.emplace_back(keyword::MKSTREAM);
         send_command(cmd_params);
     }
 
-    virtual void xgroup_delconsumer(cref_string key, cref_string groupname,
-        cref_string consumername) override
+    void xgroup_delconsumer(cref_string key, cref_string groupname,
+        cref_string consumername) override final
     {
-        send_command({ cmd::streams::XGROUP, kwd::DELCONSUMER, key,
+        send_command({ command::XGROUP, keyword::DELCONSUMER, key,
             groupname, consumername });
     }
 
-    virtual void xgroup_destroy(cref_string key, cref_string groupname) override
+    void xgroup_destroy(cref_string key, cref_string groupname) override final
     {
-        send_command({ cmd::streams::XGROUP, kwd::DESTROY, key, groupname });
+        send_command({ command::XGROUP, keyword::DESTROY, key, groupname });
     }
 
-    virtual void xgroup_setid(cref_string key, cref_string groupname,
-        cref_string id) override
+    void xgroup_setid(cref_string key, cref_string groupname,
+        cref_string id) override final
     {
-        send_command({ cmd::streams::XGROUP, kwd::SETID, groupname, id });
+        send_command({ command::XGROUP, keyword::SETID, groupname, id });
     }
 
-    virtual void xgroup_help() override
+    void xgroup_help() override final
     {
-        send_command({ cmd::streams::XGROUP, kwd::HELP });
+        send_command({ command::XGROUP, keyword::HELP });
     }
 
-    virtual void xinfo_consumers(cref_string key, cref_string groupname) override
+    void xinfo_consumers(cref_string key, cref_string groupname) override final
     {
-        send_command({ cmd::streams::XINFO, kwd::CONSUMERS, key, groupname });
+        send_command({ command::XINFO, keyword::CONSUMERS, key, groupname });
     }
 
-    virtual void xinfo_groups(cref_string key) override
+    void xinfo_groups(cref_string key) override final
     {
-        send_command({ cmd::streams::XINFO, kwd::GROUPS, key });
+        send_command({ command::XINFO, keyword::GROUPS, key });
     }
 
-    virtual void xinfo_stream(cref_string key) override
+    void xinfo_stream(cref_string key) override final
     {
-        send_command({ cmd::streams::XINFO, kwd::STREAM, key });
+        send_command({ command::XINFO, keyword::STREAM, key });
     }
 
-    virtual void xinfo_help() override
+    void xinfo_help() override final
     {
-        send_command({ cmd::streams::XINFO, kwd::HELP });
+        send_command({ command::XINFO, keyword::HELP });
     }
 
-    virtual void xlen(cref_string key) override
+    void xlen(cref_string key) override final
     {
-        send_command({ cmd::streams::XLEN, key });
+        send_command({ command::XLEN, key });
     }
 
-    virtual void xpending(cref_string key, cref_string group) override
+    void xpending(cref_string key, cref_string group) override final
     {
-        send_command({ cmd::streams::XPENDING, key, group });
+        send_command({ command::XPENDING, key, group });
     }
 
-    virtual void xpending(cref_string key, cref_string group,
-        cref_string start, cref_string end, czint count) override
+    void xpending(cref_string key, cref_string group,
+        cref_string start, cref_string end, czint count) override final
     {
-        send_command({ cmd::streams::XPENDING, key, group,
+        send_command({ command::XPENDING, key, group,
             start, end, std::to_string(count) });
     }
 
-    virtual void xpending(cref_string key, cref_string group,
+    void xpending(cref_string key, cref_string group,
         cref_string start, cref_string end, czint count,
-        cref_string consumer) override
+        cref_string consumer) override final
     {
-        send_command({ cmd::streams::XPENDING, key, group,
+        send_command({ command::XPENDING, key, group,
             start, end, std::to_string(count), consumer });
     }
 
-    virtual void xrange(cref_string key,
-        cref_string start, cref_string end) override
+    void xrange(cref_string key,
+        cref_string start, cref_string end) override final
     {
-        send_command({ cmd::streams::XRANGE, key, start, end });
+        send_command({ command::XRANGE, key, start, end });
     }
 
-    virtual void xrange(cref_string key,
-        cref_string start, cref_string end, czint count) override
+    void xrange(cref_string key,
+        cref_string start, cref_string end, czint count) override final
     {
-        send_command({ cmd::streams::XRANGE, key, start, end,
-            kwd::COUNT, std::to_string(count) });
+        send_command({ command::XRANGE, key, start, end,
+            keyword::COUNT, std::to_string(count) });
     }
 
-    virtual void xread(const xread_param& param, cref_string_array keys,
-        cref_stream_id_array ids) override
+    void xread(const xread_param& param, cref_string key,
+        cref_stream_id id) override final
     {
         string_array param_array;
         param.append_params(param_array);
-        param_array.emplace_back(kwd::STREAMS);
-        send_command({ {cmd::streams::XREAD}, param_array,
-            keys, stream_id_array_to_string_array(ids) });
+        param_array.emplace_back(keyword::STREAMS);
+        send_command({ {command::XREAD}, param_array,
+            {key, id.to_string()} });
     }
 
-    virtual void xreadgroup(cref_string group, cref_string consumer,
-        const xread_param& param, bool noack, cref_string_array keys,
-        cref_stream_id_array ids) override
+    void xread(const xread_param& param, cref_string_array keys,
+        cref_stream_id_array ids) override final
+    {
+        string_array param_array;
+        param.append_params(param_array);
+        param_array.emplace_back(keyword::STREAMS);
+        send_command({ {command::XREAD}, param_array,
+            keys, to_string_array(ids) });
+    }
+
+    void xreadgroup(cref_string group, cref_string consumer,
+        const xread_param& param, bool noack, cref_string key,
+        cref_stream_id id) override final
     {
         string_array param_array;
         param.append_params(param_array);
         if (noack)
-            param_array.emplace_back(kwd::NOACK);
-        param_array.emplace_back(kwd::STREAMS);
-        send_command({ {cmd::streams::XREADGROUP}, param_array,
-            keys, stream_id_array_to_string_array(ids) });
+            param_array.emplace_back(keyword::NOACK);
+        param_array.emplace_back(keyword::STREAMS);
+        send_command({ {command::XREADGROUP}, param_array,
+            {key, id.to_string()} });
     }
 
-    virtual void xrevrange(cref_string key,
-        cref_string end, cref_string start) override
+    void xreadgroup(cref_string group, cref_string consumer,
+        const xread_param& param, bool noack, cref_string_array keys,
+        cref_stream_id_array ids) override final
     {
-        send_command({ cmd::streams::XREVRANGE, key, start, end });
+        string_array param_array;
+        param.append_params(param_array);
+        if (noack)
+            param_array.emplace_back(keyword::NOACK);
+        param_array.emplace_back(keyword::STREAMS);
+        send_command({ {command::XREADGROUP}, param_array,
+            keys, to_string_array(ids) });
     }
 
-    virtual void xrevrange(cref_string key,
-        cref_string end, cref_string start, czint count) override
+    void xrevrange(cref_string key,
+        cref_string end, cref_string start) override final
     {
-        send_command({ cmd::streams::XREVRANGE, key, start, end,
-            kwd::COUNT, std::to_string(count) });
+        send_command({ command::XREVRANGE, key, start, end });
     }
 
-    virtual void xtrim(cref_string key, czint threshold,
-        bool almost_exact = false) override
+    void xrevrange(cref_string key,
+        cref_string end, cref_string start, czint count) override final
     {
-        string_array cmd_params = { cmd::streams::XTRIM, key };
-        cmd_params.emplace_back(kwd::MAXLEN);
+        send_command({ command::XREVRANGE, key, start, end,
+            keyword::COUNT, std::to_string(count) });
+    }
+
+    void xtrim(cref_string key, czint threshold,
+        bool almost_exact = false) override final
+    {
+        string_array cmd_params = { command::XTRIM, key };
+        cmd_params.emplace_back(keyword::MAXLEN);
         if (almost_exact)
-            cmd_params.emplace_back(kwd::ALMOST_EXACT);
+            cmd_params.emplace_back(keyword::ALMOST_EXACT);
         cmd_params.emplace_back(std::to_string(threshold));
         send_command(cmd_params);
     }
 
 //strings
 
-    virtual void append(cref_string key, cref_string value) override
+    void append(cref_string key, cref_string value) override final
     {
-        send_command({ cmd::strings::APPEND, value });
+        send_command({ command::APPEND, value });
     }
 
-    virtual void bitcount(cref_string key, czint start, czint end) override
+    void bitcount(cref_string key) override final
     {
-        send_command({ cmd::strings::BITCOUNT, key,
+        send_command({ command::BITCOUNT, key });
+    }
+
+    void bitcount(cref_string key, czint start, czint end) override final
+    {
+        send_command({ command::BITCOUNT, key,
             std::to_string(start), std::to_string(end) });
     }
 
-    virtual void bitop(bit_operation op, cref_string dest_key,
-        cref_string_array keys) override
+    void bitfield(cref_string key, cref_string_array arguments) override final
     {
-        send_command({ cmd::strings::BITOP, bit_operation_dict.at(op), dest_key }, keys);
+        send_command({ command::BITFIELD, key }, arguments);
     }
 
-    virtual void decr(cref_string key) override
+    void bitfield_RO(cref_string key, cref_string_array arguments) override final
     {
-        send_command({ cmd::strings::DECR, key });
+        send_command({ command::BITFIELD_RO, key }, arguments);
     }
 
-    virtual void decrby(cref_string key, czint decrement) override
+    void bitop(bit_operation operation, cref_string destkey,
+        cref_string_array keys) override final
     {
-        send_command({ cmd::strings::DECRBY, key, std::to_string(decrement) });
+        send_command({ command::BITOP, bit_operation_dict.at(operation),
+            destkey }, keys);
     }
 
-    virtual void get(cref_string key) override
+    void bitpos(cref_string key, czbit bit, const bitpos_param& param) override final
     {
-        send_command({ cmd::strings::GET, key });
+        send_command({ command::BITPOS, key, std::to_string(bit) },
+            param.to_string_array());
     }
 
-    virtual void getbit(cref_string key, czint offset) override
+    void decr(cref_string key) override final
     {
-        if (offset < 0)
-            throw redis_commmand_error("ERR bit offset is not an integer or out of range");
-        send_command({ cmd::strings::GETBIT, key, std::to_string(offset) });
+        send_command({ command::DECR, key });
     }
 
-    virtual void getrange(cref_string key, czint start, czint end) override
+    void decrby(cref_string key, czint decrement) override final
     {
-        send_command({ cmd::strings::GETRANGE, key,
+        send_command({ command::DECRBY, key, std::to_string(decrement) });
+    }
+
+    void get(cref_string key) override final
+    {
+        send_command({ command::GET, key });
+    }
+
+    void getbit(cref_string key, czint offset) override final
+    {
+        send_command({ command::GETBIT, key, std::to_string(offset) });
+    }
+
+    void getrange(cref_string key, czint start, czint end) override final
+    {
+        send_command({ command::GETRANGE, key,
             std::to_string(start), std::to_string(end) });
     }
 
-    virtual void getset(cref_string key, cref_string value) override
+    void getset(cref_string key, cref_string value) override final
     {
-        send_command({ cmd::strings::GETSET, key, value });
+        send_command({ command::GETSET, key, value });
     }
 
-    virtual void incr(cref_string key) override
+    void incr(cref_string key) override final
     {
-        send_command({ cmd::strings::INCR, key });
+        send_command({ command::INCR, key });
     }
 
-    virtual void incrby(cref_string key, czint increment)
+    void incrby(cref_string key, czint increment) override final
     {
-        send_command({ cmd::strings::INCRBY, key, std::to_string(increment) });
+        send_command({ command::INCRBY, key, std::to_string(increment) });
     }
 
-    virtual void incrbyfloat(cref_string key, double increment) override
+    void incrbyfloat(cref_string key, double increment) override final
     {
-        send_command({ cmd::strings::INCRBYFLOAT, key, std::to_string(increment) });
+        send_command({ command::INCRBYFLOAT, key, std::to_string(increment) });
     }
 
-    virtual void mget(cref_string_array keys) override
+    void mget(cref_string_array keys) override final
     {
-        send_command({ cmd::strings::MGET }, keys);
+        send_command({ command::MGET }, keys);
     }
 
-    virtual void mset(cref_string_array key_value_pairs) override
+    void mset(cref_string_map keys_valus) override final
     {
-        if (key_value_pairs.size() == 0 || key_value_pairs.size() % 2 != 0)
-            throw redis_commmand_error("ERR wrong number of arguments for 'mset' command");
-        send_command({ cmd::strings::MSET }, key_value_pairs);
+        send_command({ command::MSET },
+            detail::to_string_array(keys_valus));
     }
 
-    virtual void msetnx(cref_string_array key_value_pairs) override
+    void msetnx(cref_string_map keys_valus) override final
     {
-        if (key_value_pairs.size() == 0 || key_value_pairs.size() % 2 != 0)
-            throw redis_commmand_error("ERR wrong number of arguments for 'msetnx' command");
-        send_command({ cmd::strings::MSETNX }, key_value_pairs);
+        send_command({ command::MSETNX },
+            detail::to_string_array(keys_valus));
     }
 
-    virtual void psetex(cref_string key, czint milliseconds, cref_string value) override
+    void psetex(cref_string key, czint milliseconds, cref_string value) override final
     {
         if (milliseconds <= 0)
             throw redis_commmand_error("ERR invalid expire time in psetex");
-        send_command({ cmd::strings::PSETEX, key, std::to_string(milliseconds), value });
+        send_command({ command::PSETEX, key, std::to_string(milliseconds), value });
     }
 
-    virtual void set(cref_string key, cref_string value, cref_string_array params = {}) override
+    void set(cref_string key, cref_string value, const set_param& param) override final
     {
-        if (params.size() == 0)
-            throw redis_commmand_error("ERR wrong number of arguments for 'set' command");
-        send_command({ cmd::strings::SET, key, value }, params);
+        send_command({ command::SET, key, value }, param.to_string_array());
     }
 
-    virtual void setbit(cref_string key, czint offset, czbit bit) override
+    void setbit(cref_string key, czint offset, czbit bit) override final
     {
-        send_command({ cmd::strings::SETBIT, key, std::to_string(offset), (bit ? "1" : "0") });
+        send_command({ command::SETBIT, key, std::to_string(offset),
+            std::to_string(bit) });
     }
 
-    virtual void setex(cref_string key, czint seconds, cref_string value) override
+    void setex(cref_string key, czint seconds, cref_string value) override final
     {
         if (seconds <= 0)
             throw redis_commmand_error("ERR invalid expire time in setex");
-        send_command({ cmd::strings::SETEX, key, std::to_string(seconds), value });
+        send_command({ command::SETEX, key, std::to_string(seconds), value });
     }
 
-    virtual void setnx(cref_string key, cref_string value) override
+    void setnx(cref_string key, cref_string value) override final
     {
-        send_command({ cmd::strings::SETNX, key, value });
+        send_command({ command::SETNX, key, value });
     }
 
-    virtual void setrange(cref_string key, czint offset, cref_string value) override
+    void setrange(cref_string key, czint offset, cref_string value) override final
     {
         if (offset < 0)
             throw redis_commmand_error("ERR offset is out of range");
-        send_command({ cmd::strings::SETRANGE, key, std::to_string(offset), value });
+        send_command({ command::SETRANGE, key, std::to_string(offset), value });
     }
 
-    virtual void strlen(cref_string key) override
+    void strlen(cref_string key) override final
     {
-        send_command({ cmd::strings::STRLEN, key });
+        send_command({ command::STRLEN, key });
     }
 
 //transactions
 
-    virtual void discard() override
+    void discard() override final
     {
         if (!is_in_multi())
             throw redis_commmand_error("ERR DISCARD without MULTI");
 
-        send_command({ cmd::transactions::DISCARD });
+        send_command({ command::DISCARD });
         is_in_multi_ = false;
         is_in_watch_ = false;
     }
 
-    virtual void exec() override
+    void exec() override final
     {
         if (!is_in_multi())
             throw redis_commmand_error("ERR EXEC without MULTI");
 
-        send_command({ cmd::transactions::EXEC });
+        send_command({ command::EXEC });
         is_in_multi_ = false;
         is_in_watch_ = false;
     }
 
-    virtual void multi() override
+    void multi() override final
     {
         if (is_in_multi())
             throw redis_commmand_error("ERR MULTI calls can not be nested");
 
-        send_command({ cmd::transactions::MULTI });
+        send_command({ command::MULTI });
         is_in_multi_ = true;
     }
 
-    virtual void unwatch() override
+    void unwatch() override final
     {
-        send_command({ cmd::transactions::UNWATCH });
+        send_command({ command::UNWATCH });
         is_in_watch_ = false;
     }
 
-    virtual void watch(cref_string_array keys) override
+    void watch(cref_string_array keys) override final
     {
-        send_command({ cmd::transactions::WATCH }, keys);
+        if (is_in_multi())
+            throw redis_commmand_error("ERR WATCH inside MULTI is not allowed");
+        send_command({ command::WATCH }, keys);
         is_in_watch_ = true;
-    }
-
-private:
-    std::string     host_;
-    std::string     port_;
-    czstring        username_;
-    czstring        password_;
-    unsigned        database_;
-    bool            is_in_multi_ = false;
-    bool            is_in_watch_ = false;
-    size_t          send_count_ = 0;
-
-    resp            resp_{ *this };
-
-    void check_connect() const
-    {
-        if (!is_connected())
-            throw redis_connection_error("not connected");
     }
 };
 

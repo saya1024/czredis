@@ -1,18 +1,28 @@
 #pragma once
 
-#include "../common.h"
+#include "pool_object.h"
+#include "../error.h"
 
 namespace czredis
 {
 namespace detail
 {
-class socket : private asio::noncopyable
+
+class socket : public pool_object
 {
+    asio::io_context io_context_;
+    std::unique_ptr<tcp::socket> socket_;
+    unsigned connect_timeout_ = 0;
+    unsigned read_timeout_ = 0;
+    unsigned write_timeout_ = 0;
+    bool is_connected_ = false;
+    bool blocking_ = false;
+
 public:
     socket() : io_context_(1)
     {}
 
-    virtual ~socket() noexcept
+    ~socket() noexcept override
     {
         disconnect();
     }
@@ -22,7 +32,7 @@ public:
         if (!is_connected_)
         {
             auto endpoints = tcp::resolver(io_context_).resolve(host, service);
-            socket_.reset(new tcp::socket(io_context_));
+            socket_ = std::make_unique<tcp::socket>(io_context_);
             if (connect_timeout_ > 0)
             {
                 asio::error_code ec;
@@ -41,6 +51,7 @@ public:
                 asio::connect(*socket_, endpoints);
             }
             is_connected_ = true;
+            update_response_time();
         }
     }
 
@@ -62,6 +73,9 @@ public:
 
     size_t write(const char* buf, size_t buf_size)
     {
+        if (!is_connected_)
+            throw redis_connection_error("not connected");
+
         size_t ret = 0;
         if (write_timeout_ > 0 && !blocking_)
         {
@@ -86,6 +100,9 @@ public:
 
     size_t read(czstring& buf, size_t read_size)
     {
+        if (!is_connected_)
+            throw redis_connection_error("not connected");
+
         size_t ret = 0;
         if (read_timeout_ > 0 && !blocking_)
         {
@@ -107,11 +124,15 @@ public:
             ret = asio::read(*socket_, asio::dynamic_buffer(buf),
                 asio::transfer_exactly(read_size));
         }
+        update_response_time();
         return ret;
     }
 
     size_t read_some(byte* buf, size_t buf_size)
     {
+        if (!is_connected_)
+            throw redis_connection_error("not connected");
+
         size_t ret = 0;
         if (read_timeout_ > 0 && !blocking_)
         {
@@ -131,6 +152,7 @@ public:
         {
             ret = socket_->read_some(asio::buffer(buf, buf_size));
         }
+        update_response_time();
         return ret;
     }
 
@@ -160,14 +182,6 @@ public:
     }
 
 private:
-    asio::io_context io_context_;
-    std::unique_ptr<tcp::socket> socket_;
-    bool is_connected_ = false;
-    unsigned connect_timeout_ = 0;
-    unsigned read_timeout_ = 0;
-    unsigned write_timeout_ = 0;
-    bool blocking_ = false;
-
     bool run(unsigned timeout_ms)
     {
         io_context_.restart();

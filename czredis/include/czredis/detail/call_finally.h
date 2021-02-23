@@ -9,6 +9,8 @@ namespace detail
 
 class call_finally
 {
+    std::function<void()> func_;
+
 public:
     call_finally(std::function<void()> func) :
         func_(func)
@@ -21,15 +23,11 @@ public:
             func_();
         }
         catch (const std::exception&)
-        {
-        }
+        {}
     }
 
     call_finally(const call_finally&) = delete;
     const call_finally operator=(const call_finally&) = delete;
-
-private:
-    std::function<void()> func_;
 };
 
 } // namespace detail

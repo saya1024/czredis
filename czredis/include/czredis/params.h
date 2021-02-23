@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.h"
 #include "detail/param_templete.h"
 
 namespace czredis
@@ -39,20 +40,29 @@ public:
         ANY.use = any;
     }
 
-    void set_ASC() noexcept { ASC.use = true; }
-
-    void set_DESC() noexcept { DESC.use = true; }
-
-    virtual void append_params(string_array& params) const override
+    void set_ASC() noexcept
     {
-        only_one_of_params(ASC, DESC);
-        WITHCOORD.append_param(params);
-        WITHDIST.append_param(params);
-        WITHHASH.append_param(params);
-        COUNT.append_param(params);
-        ANY.append_param(params);
-        ASC.append_param(params);
-        DESC.append_param(params);
+        ASC.use = true;
+        DESC.use = false;
+    }
+
+    void set_DESC() noexcept
+    {
+        DESC.use = true;
+        ASC.use = false;
+    }
+
+    virtual void append_params(string_array& cmd_params) const override
+    {
+        fill_up(cmd_params,
+            WITHCOORD,
+            WITHDIST,
+            WITHHASH,
+            COUNT,
+            ANY,
+            ASC,
+            DESC
+        );
     }
 };
 
@@ -79,10 +89,12 @@ public:
         STOREDIST.value1 = key;
     }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        STORE.append_param(params);
-        STOREDIST.append_param(params);
+        fill_up(cmd_params,
+            STORE,
+            STOREDIST
+        );
     }
 };
 
@@ -109,10 +121,12 @@ public:
         COUNT.value1 = value;
     }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        MATCH.append_param(params);
-        COUNT.append_param(params);
+        fill_up(cmd_params,
+            MATCH,
+            COUNT
+        );
     }
 };
 
@@ -139,6 +153,7 @@ public:
     {
         AUTH.use = true;
         AUTH.value1 = password;
+        AUTH2.use = false;
     }
 
     void set_AUTH2(cref_string username, cref_string password)
@@ -146,15 +161,17 @@ public:
         AUTH2.use = true;
         AUTH2.value1 = username;
         AUTH2.value2 = password;
+        AUTH.use = false;
     }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        detail::only_one_of_params(AUTH, AUTH2);
-        COPY.append_param(params);
-        REPLACE.append_param(params);
-        AUTH.append_param(params);
-        AUTH2.append_param(params);
+        fill_up(cmd_params,
+            COPY,
+            REPLACE,
+            AUTH,
+            AUTH2
+        );
     }
 };
 
@@ -189,12 +206,14 @@ public:
         FREQ.value1 = frequency;
     }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        REPLACE.append_param(params);
-        ABSTTL.append_param(params);
-        IDLETIME.append_param(params);
-        FREQ.append_param(params);
+        fill_up(cmd_params,
+            REPLACE,
+            ABSTTL,
+            IDLETIME,
+            FREQ
+        );
     }
 };
 
@@ -206,7 +225,6 @@ class sort_param : public detail::param_templete
     detail::param0 ASC;
     detail::param0 DESC;
     detail::param0 ALPHA;
-    detail::param1<czstring> STORE;
 
 public:
     sort_param() :
@@ -215,8 +233,7 @@ public:
         GET("GET"),
         ASC("ASC"),
         DESC("DESC"),
-        ALPHA("ALPHA"),
-        STORE("STORE")
+        ALPHA("ALPHA")
     {}
 
     void set_BY(cref_string pattern)
@@ -238,28 +255,30 @@ public:
         GET.values = patterns;
     }
 
-    void set_ASC() noexcept { ASC.use = true; }
+    void set_ASC() noexcept
+    {
+        ASC.use = true;
+        DESC.use = false;
+    }
 
-    void set_DESC() noexcept { DESC.use = true; }
+    void set_DESC() noexcept
+    {
+        DESC.use = true;
+        ASC.use = false;
+    }
 
     void set_ALPHA() noexcept { ALPHA.use = true; }
 
-    void set_STORE(cref_string destination)
+    virtual void append_params(string_array& cmd_params) const override
     {
-        STORE.use = true;
-        STORE.value1 = destination;
-    }
-
-    virtual void append_params(string_array& params) const override
-    {
-        detail::only_one_of_params(ASC, DESC);
-        BY.append_param(params);
-        LIMIT.append_param(params);
-        GET.append_param(params);
-        ASC.append_param(params);
-        DESC.append_param(params);
-        ALPHA.append_param(params);
-        STORE.append_param(params);
+        fill_up(cmd_params,
+            BY,
+            LIMIT,
+            GET,
+            ASC,
+            DESC,
+            ALPHA
+        );
     }
 };
 
@@ -278,18 +297,30 @@ public:
         INCR("INCR")
     {}
 
-    void set_NX() noexcept { NX.use = true; }
-    void set_XX() noexcept { XX.use = true; }
+    void set_NX() noexcept
+    {
+        NX.use = true;
+        XX.use = false;
+    }
+
+    void set_XX() noexcept
+    {
+        XX.use = true;
+        NX.use = false;
+    }
+
     void set_CH() noexcept { CH.use = true; }
+
     void set_INCR() noexcept { INCR.use = true; }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        only_one_of_params(NX, XX);
-        NX.append_param(params);
-        XX.append_param(params);
-        CH.append_param(params);
-        INCR.append_param(params);
+        fill_up(cmd_params,
+            NX,
+            XX,
+            CH,
+            INCR
+        );
     }
 };
 
@@ -316,10 +347,12 @@ public:
         AGGREGATE.value1 = detail::aggregate_dict.at(value);
     }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        WEIGHTS.append_param(params);
-        AGGREGATE.append_param(params);
+        fill_up(cmd_params,
+            WEIGHTS,
+            AGGREGATE
+        );
     }
 };
 
@@ -341,10 +374,12 @@ public:
         ALMOST_EXACT.use = almost_exact;
     }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        MAXLEN.append_param(params);
-        ALMOST_EXACT.append_param(params);
+        fill_up(cmd_params,
+            MAXLEN,
+            ALMOST_EXACT
+        );
     }
 };
 
@@ -389,13 +424,15 @@ public:
 
     bool is_justid() const noexcept { return JUSTID.use; }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        IDLE.append_param(params);
-        TIME.append_param(params);
-        RETRYCOUNT.append_param(params);
-        FORCE.append_param(params);
-        JUSTID.append_param(params);
+        fill_up(cmd_params,
+            IDLE,
+            TIME,
+            RETRYCOUNT,
+            FORCE,
+            JUSTID
+        );
     }
 };
 
@@ -424,10 +461,143 @@ public:
 
     bool is_block() const noexcept { return BLOCK.use; }
 
-    virtual void append_params(string_array& params) const override
+    virtual void append_params(string_array& cmd_params) const override
     {
-        COUNT.append_param(params);
-        BLOCK.append_param(params);
+        fill_up(cmd_params,
+            COUNT,
+            BLOCK
+        );
+    }
+};
+
+class bitpos_param : public detail::param_templete
+{
+    string_array params_;
+    detail::param1<czint> start_;
+    detail::param1<czint> end_;
+
+public:
+    bitpos_param() :
+        start_(""),
+        end_("")
+    {}
+
+    void set_start(czint value) noexcept
+    {
+        start_.use = true;
+        start_.value1 = value;
+    }
+
+    void set_end(czint value) noexcept
+    {
+        end_.use = true;
+        end_.value1 = value;
+    }
+
+    virtual void append_params(string_array& cmd_params) const override
+    {
+        fill_up(cmd_params,
+            start_,
+            end_
+        );
+    }
+};
+
+class set_param : public detail::param_templete
+{
+    detail::param1<czint> EX;
+    detail::param1<czint> PX;
+    detail::param1<czint> EXAT;
+    detail::param1<czint> PXAT;
+    detail::param0 KEEPTTL;
+    detail::param0 NX;
+    detail::param0 XX;
+    detail::param0 GET;
+
+    void reset_EX_PX_EXAT_PXAT_KEEPTTL() noexcept
+    {
+        EX.use = false;
+        PX.use = false;
+        EXAT.use = false;
+        PXAT.use = false;
+        KEEPTTL.use = false;
+    }
+
+public:
+    set_param():
+        EX("EX"),
+        PX("PX"),
+        EXAT("EXAT"),
+        PXAT("PXAT"),
+        KEEPTTL("KEEPTTL"),
+        NX("NX"),
+        XX("XX"),
+        GET("GET")
+    {}
+
+    void set_EX(czint seconds) noexcept
+    {
+        reset_EX_PX_EXAT_PXAT_KEEPTTL();
+        EX.use = true;
+        EX.value1 = seconds;
+    }
+
+    void set_PX(czint milliseconds) noexcept
+    {
+        reset_EX_PX_EXAT_PXAT_KEEPTTL();
+        PX.use = true;
+        PX.value1 = milliseconds;
+    }
+
+    void set_EXAT(czint timestamp) noexcept
+    {
+        reset_EX_PX_EXAT_PXAT_KEEPTTL();
+        EXAT.use = true;
+        EXAT.value1 = timestamp;
+    }
+
+    void set_PXAT(czint milliseconds_timestamp) noexcept
+    {
+        reset_EX_PX_EXAT_PXAT_KEEPTTL();
+        PXAT.use = true;
+        PXAT.value1 = milliseconds_timestamp;
+    }
+
+    void set_KEEPTTL() noexcept
+    {
+        reset_EX_PX_EXAT_PXAT_KEEPTTL();
+        KEEPTTL.use = true;
+    }
+
+    void set_NX() noexcept
+    {
+        NX.use = true;
+        XX.use = false;
+    }
+
+    void set_XX() noexcept
+    {
+        XX.use = true;
+        NX.use = false;
+    }
+
+    void set_GET() noexcept
+    {
+        GET.use = true;
+    }
+
+    virtual void append_params(string_array& cmd_params) const override
+    {
+        fill_up(cmd_params,
+            EX,
+            PX,
+            EXAT,
+            PXAT,
+            KEEPTTL,
+            NX,
+            XX,
+            GET
+        );
     }
 };
 

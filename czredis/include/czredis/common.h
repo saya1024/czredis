@@ -3,25 +3,24 @@
 #define ASIO_STANDALONE
 
 #include <cassert>
+#include <deque>
 #include <exception>
 #include <functional>
 #include <list>
 #include <map>
 #include <mutex>
+#include <regex>
 #include <string>
 #include <system_error>
 #include <vector>
-#include <regex>
 #include "../asio.hpp"
-#include "detail/call_finally.h"
-#include "detail/iterator.h"
 
 namespace czredis
 {
 
 using czstring = std::string;
 using czint = std::int64_t;
-using czbit = std::uint8_t;
+using czbit = bool;
 
 using string_array = std::vector<czstring>;
 using string_map = std::map<czstring, czstring>;
@@ -31,7 +30,6 @@ using cref_string_array = const string_array&;
 using cref_string_map = const string_map&;
 
 enum class reply_type { kNull, kInteger, kString, kArray, kError };
-
 enum class redis_key_type { kNone, kString, kList, kSet, kZSet, kHash, kStream };
 enum class geo_unit { kMeter, kKilometer, kMile, kFoot };
 enum class insert_place { kBefore, kAfter };
@@ -43,6 +41,8 @@ namespace detail {
 using asio::ip::tcp;
 
 using byte = std::uint8_t;
+using std::chrono::steady_clock;
+using time_point = steady_clock::time_point;
 
 const std::map<redis_key_type, czstring> redis_key_type_dict =
 {
@@ -86,9 +86,3 @@ const std::map<aggregate, czstring> aggregate_dict =
 
 } // namespace detail
 } // namespace czredis
-
-#include "error.h"
-#include "reply.h"
-#include "data.h"
-#include "params.h"
-#include "detail/utils.h"

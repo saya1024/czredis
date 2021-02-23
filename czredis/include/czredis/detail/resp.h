@@ -1,14 +1,17 @@
 #pragma once
 
 #include "stream.h"
+#include "../reply.h"
 
 namespace czredis
 {
 namespace detail
 {
 
-class resp
+class resp final
 {
+    stream stream_;
+
 public:
     static constexpr char kSymbolOfSimpleString = '+';
     static constexpr char kSymbolOfError        = '-';
@@ -20,21 +23,19 @@ public:
         stream_(s)
     {}
 
-    ~resp() noexcept
-    {}
-
     void send_command(cref_string_array params)
     {
         czstring symbol_num_crlf = kSymbolOfArray +
             std::to_string(params.size()) + "\r\n";
         stream_.write_string(symbol_num_crlf);
 
-        for (auto& param : params)
+        auto length = params.size();
+        for (size_t i = 0; i < length; i++)
         {
             symbol_num_crlf = kSymbolOfBulkString +
-                std::to_string(param.size()) + "\r\n";
+                std::to_string(params[i].size()) + "\r\n";
             stream_.write_string(symbol_num_crlf);
-            stream_.write_string(param);
+            stream_.write_string(params[i]);
             stream_.write_crlf();
         }
     }
@@ -45,28 +46,30 @@ public:
             std::to_string(params1.size() + params2.size()) + "\r\n";
         stream_.write_string(symbol_num_crlf);
 
-        for (auto& param : params1)
+        auto length = params1.size();
+        for (size_t i = 0; i < length; i++)
         {
             symbol_num_crlf = kSymbolOfBulkString +
-                std::to_string(param.size()) + "\r\n";
+                std::to_string(params1[i].size()) + "\r\n";
             stream_.write_string(symbol_num_crlf);
-            stream_.write_string(param);
+            stream_.write_string(params1[i]);
             stream_.write_crlf();
         }
-        for (auto& param : params2)
+        length = params2.size();
+        for (size_t i = 0; i < length; i++)
         {
             symbol_num_crlf = kSymbolOfBulkString +
-                std::to_string(param.size()) + "\r\n";
+                std::to_string(params2[i].size()) + "\r\n";
             stream_.write_string(symbol_num_crlf);
-            stream_.write_string(param);
+            stream_.write_string(params2[i]);
             stream_.write_crlf();
         }
     }
 
-    void send_command(std::initializer_list<string_array> params_array)
+    void send_command(std::initializer_list<string_array> params_init_list)
     {
         size_t num = 0;
-        for (auto& params : params_array)
+        for (auto& params : params_init_list)
         {
             num += params.size();
         }
@@ -74,14 +77,15 @@ public:
             std::to_string(num) + "\r\n";
         stream_.write_string(symbol_num_crlf);
 
-        for (auto& params : params_array)
+        for (auto& params : params_init_list)
         {
-            for (auto& param : params)
+            auto length = params.size();
+            for (size_t i = 0; i < length; i++)
             {
                 symbol_num_crlf = kSymbolOfBulkString +
-                    std::to_string(param.size()) + "\r\n";
+                    std::to_string(params[i].size()) + "\r\n";
                 stream_.write_string(symbol_num_crlf);
-                stream_.write_string(param);
+                stream_.write_string(params[i]);
                 stream_.write_crlf();
             }
         }
@@ -109,8 +113,6 @@ public:
     }
 
 private:
-    stream stream_;
-
     reply parse()
     {
         auto b = stream_.read_byte();
@@ -133,17 +135,17 @@ private:
 
     reply parse_simple_string()
     {
-        return stream_.read_string_crlf();
+        return reply(stream_.read_string_crlf());
     }
 
     reply parse_error()
     {
-        return { stream_.read_string_crlf(), true };
+        return reply(stream_.read_string_crlf(), true);
     }
 
     reply parse_integer()
     {
-        return stream_.read_integer_crlf();
+        return reply(stream_.read_integer_crlf());
     }
 
     reply parse_bulk_string()
@@ -152,21 +154,21 @@ private:
         if (num < 0)
             return reply();
         if (num == 0)
-            return czstring("");
+            return reply(czstring());
 
         auto size = integer_to_size(num);
-        return stream_.read_string_crlf(size);
+        return reply(stream_.read_string_crlf(size));
     }
 
     reply parse_array()
     {
         auto num = stream_.read_integer_crlf();
-        reply_array arr;
         if (num < 0)
             return reply();
         if (num == 0)
-            return arr;
+            return reply(reply_array());
 
+        reply_array arr;
         auto size = integer_to_size(num);
         if (arr.capacity() < size)
         {
@@ -176,7 +178,7 @@ private:
         {
             arr.emplace_back(parse());
         }
-        return arr;
+        return reply(std::move(arr));
     }
 
     size_t integer_to_size(czint num) const

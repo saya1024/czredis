@@ -7,9 +7,10 @@ namespace czredis
 namespace detail
 {
 
-class stream : private asio::noncopyable
+class stream final : private asio::noncopyable
 {
-    constexpr static size_t kBufSize = 4096;
+    static constexpr size_t kBufSize = 4096;
+
 public:
     stream(socket& s) :
         socket_(s),

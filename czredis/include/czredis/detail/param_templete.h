@@ -28,7 +28,8 @@ public:
     {
         if (use)
         {
-            params.emplace_back(name);
+            if (!name.empty())
+                params.emplace_back(name);
         }
     }
 };
@@ -39,31 +40,41 @@ class param1 : public param0
 public:
     VAL1 value1;
 
-    param1(const char* n) : param0(n) {}
+    param1(const char* n) :
+        param0(n),
+        value1{}
+    {}
 
     void append_param(string_array& params) const
     {
         if (use)
         {
-            params.emplace_back(name);
+            if (!name.empty())
+                params.emplace_back(name);
             params.emplace_back(val_to_str(value1));
         }
     }
 };
 
 template<typename VAL1, typename VAL2>
-class param2 :public param1<VAL1>
+class param2 : public param1<VAL1>
 {
+    using my_base = param1<VAL1>;
+
 public:
     VAL2 value2;
 
-    param2(const char* n) : param1<VAL1>(n) {}
+    param2(const char* n) :
+        my_base(n),
+        value2{}
+    {}
 
     void append_param(string_array& params) const
     {
-        if (param1<VAL1>::use)
+        if (my_base::use)
         {
-            params.emplace_back(param1<VAL1>::name);
+            if (!my_base::name.empty())
+                params.emplace_back(param1<VAL1>::name);
             params.emplace_back(val_to_str(param1<VAL1>::value1));
             params.emplace_back(val_to_str(value2));
         }
@@ -82,10 +93,12 @@ public:
     {
         if (use)
         {
-            params.emplace_back(name);
-            for (auto& v : values)
+            if (!name.empty())
+                params.emplace_back(name);
+            auto length = values.size();
+            for (size_t i = 0; i < length; i++)
             {
-                params.emplace_back(val_to_str(v));
+                params.emplace_back(val_to_str(values[i]));
             }
         }
     }
@@ -103,33 +116,41 @@ public:
     {
         if (use)
         {
-            for (auto& v : values)
+            auto length = values.size();
+            for (size_t i = 0; i < length; i++)
             {
-                params.emplace_back(name);
-                params.emplace_back(val_to_str(v));
+                if (!name.empty())
+                    params.emplace_back(name);
+                params.emplace_back(val_to_str(values[i]));
             }
         }
     }
 };
 
-template<typename PARAM1, typename PARAM2>
-void only_one_of_params(PARAM1 p1, PARAM2 p2)
-{
-    if (p1.use && p2.use)
-        throw redis_commmand_error("ERR only one of "
-            + p1.name + " and " + p2.name + " can be used");
-}
-
 class param_templete
 {
 public:
-    virtual void append_params(string_array& params) const = 0;
+    virtual void append_params(string_array& cmd_params) const = 0;
 
     string_array to_string_array() const
     {
         string_array params;
         append_params(params);
         return params;
+    }
+
+protected:
+    template<typename T>
+    static void fill_up(string_array& cmd_params, T param)
+    {
+        param.append_param(cmd_params);
+    }
+
+    template<typename T, typename...PARAMS>
+    static void fill_up(string_array& cmd_params, T param, PARAMS ...params)
+    {
+        param.append_param(cmd_params);
+        fill_up(cmd_params, params...);
     }
 };
 
