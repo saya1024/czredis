@@ -24,6 +24,7 @@
     <ClInclude Include="include\czredis\common.h" />
     <ClInclude Include="include\czredis\detail\call_finally.h" />
     <ClInclude Include="include\czredis\detail\client.h" />
+    <ClInclude Include="include\czredis\detail\client_config.h" />
     <ClInclude Include="include\czredis\detail\delay_commands.h" />
     <ClInclude Include="include\czredis\detail\delay_queue.h" />
     <ClInclude Include="include\czredis\detail\direct_commands.h" />
@@ -47,6 +48,7 @@
     <ClInclude Include="include\czredis\detail\one_key_direct_commands.h" />
     <ClInclude Include="include\czredis\detail\param_templete.h" />
     <ClInclude Include="include\czredis\detail\pool.h" />
+    <ClInclude Include="include\czredis\detail\pool_config.h" />
     <ClInclude Include="include\czredis\detail\pool_object.h" />
     <ClInclude Include="include\czredis\detail\resp.h" />
     <ClInclude Include="include\czredis\detail\socket.h" />
@@ -57,7 +59,9 @@
     <ClInclude Include="include\czredis\params.h" />
     <ClInclude Include="include\czredis\pipeline.h" />
     <ClInclude Include="include\czredis\redis.h" />
+    <ClInclude Include="include\czredis\redis_config.h" />
     <ClInclude Include="include\czredis\redis_pool.h" />
+    <ClInclude Include="include\czredis\redis_pool_config.h" />
     <ClInclude Include="include\czredis\reply.h" />
     <ClInclude Include="include\czredis\data.h" />
   </ItemGroup>

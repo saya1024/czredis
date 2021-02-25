@@ -1,6 +1,7 @@
 #pragma once
 
 #include "resp.h"
+#include "client_config.h"
 #include "command.h"
 #include "interface.h"
 #include "data_cast.h"
@@ -9,16 +10,6 @@ namespace czredis
 {
 namespace detail
 {
-
-struct client_config
-{
-    czstring username = "";
-    czstring password = "";
-    unsigned database = 0;
-    unsigned connect_timeout = 2000;
-    unsigned socket_read_timeout = 2000;
-    unsigned socket_write_timeout = 2000;
-};
 
 class client : public socket, public i_commands
 {
@@ -38,13 +29,13 @@ public:
     client(cref_string host, cref_string port, const client_config& config) :
         host_(host),
         port_(port),
-        username_(config.username),
-        password_(config.password),
-        database_(config.database)
+        username_(config.username()),
+        password_(config.password()),
+        database_(config.database())
     {
-        set_connect_timeout(config.connect_timeout);
-        set_read_timeout(config.socket_read_timeout);
-        set_write_timeout(config.socket_write_timeout);
+        set_connect_timeout(config.connect_timeout());
+        set_read_timeout(config.socket_read_timeout());
+        set_write_timeout(config.socket_write_timeout());
     }
 
 
@@ -243,7 +234,7 @@ public:
     }
 
     void geoadd(cref_string key,
-        std::map<czstring, geo_coordinate> members_coordinates) override final
+        hmap<czstring, geo_coordinate> members_coordinates) override final
     {
         string_array cmd_params = { command::GEOADD ,key };
         for (auto& o : members_coordinates)
@@ -358,7 +349,7 @@ public:
         send_command({ command::HMGET, key }, fields);
     }
 
-    void hmset(cref_string key, cref_string_map fields_values) override final
+    void hmset(cref_string key, cref_string_hmap fields_values) override final
     {
         send_command({ command::HMSET, key }, to_string_array(fields_values));
     }
@@ -859,7 +850,7 @@ public:
     }
 
     void zadd(cref_string key, const zadd_param& param,
-        cref_string_map members_scores) override final
+        cref_string_hmap members_scores) override final
     {
         send_command({ {command::ZADD, key},
             param.to_string_array(), to_string_array(members_scores, true) });
@@ -1069,7 +1060,7 @@ public:
     }
 
     void xadd(cref_string key, const xadd_param param,
-        cref_string id, cref_string_map fields_values) override final
+        cref_string id, cref_string_hmap fields_values) override final
     {
         send_command({ {command::XADD, key}, param.to_string_array(),
             {id}, to_string_array(fields_values) });
@@ -1343,13 +1334,13 @@ public:
         send_command({ command::MGET }, keys);
     }
 
-    void mset(cref_string_map keys_valus) override final
+    void mset(cref_string_hmap keys_valus) override final
     {
         send_command({ command::MSET },
             detail::to_string_array(keys_valus));
     }
 
-    void msetnx(cref_string_map keys_valus) override final
+    void msetnx(cref_string_hmap keys_valus) override final
     {
         send_command({ command::MSETNX },
             detail::to_string_array(keys_valus));

@@ -1,16 +1,12 @@
 #pragma once
 
 #include "redis.h"
-#include "detail/client.h"
+#include "redis_pool_config.h"
 #include "detail/pool.h"
+
 
 namespace czredis
 {
-
-struct redis_pool_config :
-    public redis_config,
-    public detail::pool_config
-{};
 
 class redis_pool: public detail::pool<detail::client>
 {

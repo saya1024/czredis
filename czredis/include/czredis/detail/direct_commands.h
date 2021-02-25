@@ -159,10 +159,11 @@ public:
     reply blpop(cref_string_array keys, czint timeout) override final
     {
         auto& c = use_client();
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.blpop(keys, timeout);
         return c.get_reply_as<reply>();
     }
@@ -170,10 +171,11 @@ public:
     reply brpop(cref_string_array keys, czint timeout) override final
     {
         auto& c = use_client();
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.brpop(keys, timeout);
         return c.get_reply_as<reply>();
     }
@@ -182,10 +184,11 @@ public:
         czint timeout) override final
     {
         auto& c = use_client();
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.brpoplpush(source, destination, timeout);
         return c.get_reply_as<reply>();
     }
@@ -203,10 +206,11 @@ public:
         cref_string_array args) override final
     {
         auto& c = use_client();
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.eval(script, keys, args);
         return c.get_reply_as<reply>();
     }
@@ -215,10 +219,11 @@ public:
         cref_string_array args) override final
     {
         auto& c = use_client();
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.evalsha(sha1, keys, args);
         return c.get_reply_as<reply>();
     }
@@ -315,10 +320,11 @@ public:
     reply bzpopmax(cref_string_array keys, czint timeout) override final
     {
         auto& c = use_client();
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.bzpopmax(keys, timeout);
         return c.get_reply_as<reply>();
     }
@@ -326,10 +332,11 @@ public:
     reply bzpopmin(cref_string_array keys, czint timeout) override final
     {
         auto& c = use_client();
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.bzpopmin(keys, timeout);
         return c.get_reply_as<reply>();
     }
@@ -366,31 +373,33 @@ public:
         return c.get_reply_as<string_array>();
     }
 
-    std::map<czstring, stream_entries> xread(const xread_param& param,
+    hmap<czstring, stream_entries> xread(const xread_param& param,
         cref_string_array keys, cref_stream_id_array ids) override final
     {
         auto& c = use_client();
-        if (param.is_block())
-            c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        if (param.is_block())
+            c.set_read_timeout(0);
         c.xread(param, keys, ids);
-        return c.get_reply_as<std::map<czstring, stream_entries>>();
+        return c.get_reply_as<hmap<czstring, stream_entries>>();
     }
 
-    std::map<czstring, stream_entries> xreadgroup(cref_string group,
+    hmap<czstring, stream_entries> xreadgroup(cref_string group,
         cref_string consumer, const xread_param& param, bool noack,
         cref_string_array keys, cref_stream_id_array ids) override final
     {
         auto& c = use_client();
-        if (param.is_block())
-            c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        if (param.is_block())
+            c.set_read_timeout(0);
         c.xreadgroup(group, consumer, param, noack, keys, ids);
-        return c.get_reply_as<std::map<czstring, stream_entries>>();
+        return c.get_reply_as<hmap<czstring, stream_entries>>();
     }
 
 //string
@@ -410,14 +419,14 @@ public:
         return c.get_reply_as<reply_array>();
     }
 
-    czstring mset(cref_string_map keys_valus) override final
+    czstring mset(cref_string_hmap keys_valus) override final
     {
         auto& c = use_client();
         c.mset(keys_valus);
         return c.get_reply_as<czstring>();
     }
 
-    czint msetnx(cref_string_map keys_valus) override final
+    czint msetnx(cref_string_hmap keys_valus) override final
     {
         auto& c = use_client();
         c.msetnx(keys_valus);

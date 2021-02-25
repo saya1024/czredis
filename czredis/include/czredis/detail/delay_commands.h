@@ -298,20 +298,20 @@ public:
         return make_delay<string_array>();
     }
 
-    delay<std::map<czstring, stream_entries>> xread(const xread_param& param,
+    delay<hmap<czstring, stream_entries>> xread(const xread_param& param,
         cref_string_array keys, cref_stream_id_array ids) override final
     {
         use_client().xread(param, keys, ids);
-        return make_delay<std::map<czstring, stream_entries>>();
+        return make_delay<hmap<czstring, stream_entries>>();
     }
 
-    delay<std::map<czstring, stream_entries>> xreadgroup(
+    delay<hmap<czstring, stream_entries>> xreadgroup(
         cref_string group, cref_string consumer,
         const xread_param& param, bool noack,
         cref_string_array keys, cref_stream_id_array ids) override final
     {
         use_client().xreadgroup(group, consumer, param, noack, keys, ids);
-        return make_delay<std::map<czstring, stream_entries>>();
+        return make_delay<hmap<czstring, stream_entries>>();
     }
 
 //strings
@@ -328,13 +328,13 @@ public:
         return make_delay<reply_array>();
     }
 
-    delay<czstring> mset(cref_string_map keys_valus) override final
+    delay<czstring> mset(cref_string_hmap keys_valus) override final
     {
         use_client().mset(keys_valus);
         return make_delay<czstring>();
     }
 
-    delay<czint> msetnx(cref_string_map keys_valus) override final
+    delay<czint> msetnx(cref_string_hmap keys_valus) override final
     {
         use_client().msetnx(keys_valus);
         return make_delay<czint>();

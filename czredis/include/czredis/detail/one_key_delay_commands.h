@@ -32,7 +32,7 @@ public:
     }
 
     delay<czint> geoadd(cref_string key,
-        std::map<czstring, geo_coordinate> members_coordinates) override final
+        hmap<czstring, geo_coordinate> members_coordinates) override final
     {
         use_client(key).geoadd(key, members_coordinates);
         return make_delay<czint>();
@@ -156,7 +156,7 @@ public:
     }
 
     delay<czstring> hmset(cref_string key,
-        cref_string_map fields_values) override final
+        cref_string_hmap fields_values) override final
     {
         use_client(key).hmset(key, fields_values);
         return make_delay<czstring>();
@@ -536,7 +536,7 @@ public:
 
     delay<reply> zadd(cref_string key,
         const zadd_param& param,
-        cref_string_map members_scores) override final
+        cref_string_hmap members_scores) override final
     {
         use_client(key).zadd(key, param, members_scores);
         return make_delay<reply>();
@@ -731,7 +731,7 @@ public:
     }
 
     delay<stream_id> xadd(cref_string key,
-        const xadd_param param, cref_string id, cref_string_map fields_values) override final
+        const xadd_param param, cref_string id, cref_string_hmap fields_values) override final
     {
         use_client(key).xadd(key, param, id, fields_values);
         return make_delay<stream_id>();

@@ -12,6 +12,7 @@
 #include <regex>
 #include <string>
 #include <system_error>
+#include <unordered_map>
 #include <vector>
 #include "../asio.hpp"
 
@@ -22,12 +23,17 @@ using czstring = std::string;
 using czint = std::int64_t;
 using czbit = bool;
 
+template<typename KEY, typename VAL>
+using tmap = std::map<KEY, VAL>;
+template<typename KEY, typename VAL>
+using hmap = std::unordered_map<KEY, VAL>;
+
 using string_array = std::vector<czstring>;
-using string_map = std::map<czstring, czstring>;
+using string_hmap = hmap<czstring, czstring>;
 using size_t = std::size_t;
 using cref_string = const czstring&;
 using cref_string_array = const string_array&;
-using cref_string_map = const string_map&;
+using cref_string_hmap = const string_hmap&;
 
 enum class reply_type { kNull, kInteger, kString, kArray, kError };
 enum class redis_key_type { kNone, kString, kList, kSet, kZSet, kHash, kStream };
@@ -44,7 +50,7 @@ using byte = std::uint8_t;
 using std::chrono::steady_clock;
 using time_point = steady_clock::time_point;
 
-const std::map<redis_key_type, czstring> redis_key_type_dict =
+const hmap<redis_key_type, czstring> redis_key_type_dict =
 {
     {redis_key_type::kNone, "none"},
     {redis_key_type::kString, "string"},
@@ -55,7 +61,7 @@ const std::map<redis_key_type, czstring> redis_key_type_dict =
     {redis_key_type::kStream, "stream"}
 };
 
-const std::map<geo_unit, czstring> geo_unit_dict =
+const hmap<geo_unit, czstring> geo_unit_dict =
 {
     {geo_unit::kMeter, "m"},
     {geo_unit::kKilometer, "km"},
@@ -63,13 +69,13 @@ const std::map<geo_unit, czstring> geo_unit_dict =
     {geo_unit::kFoot, "ft"}
 };
 
-const std::map<insert_place, czstring> insert_place_dict =
+const hmap<insert_place, czstring> insert_place_dict =
 {
     {insert_place::kBefore, "BEFORE" },
     {insert_place::kAfter, "AFTER" }
 };
 
-const std::map<bit_operation, czstring> bit_operation_dict =
+const hmap<bit_operation, czstring> bit_operation_dict =
 {
     {bit_operation::kAND, "AND"},
     {bit_operation::kOR, "OR"},
@@ -77,7 +83,7 @@ const std::map<bit_operation, czstring> bit_operation_dict =
     {bit_operation::kXOR, "XOR"}
 };
 
-const std::map<aggregate, czstring> aggregate_dict =
+const hmap<aggregate, czstring> aggregate_dict =
 {
     {aggregate::kSUM, "SUM"},
     {aggregate::kMAX, "MAX"},

@@ -1,26 +1,13 @@
 #pragma once
 
+#include "pool_config.h"
 #include "pool_object.h"
 
 namespace czredis
 {
 
-enum class when_exhausted_action { kWait, kThrow, kCreate };
-
 namespace detail
 {
-
-struct pool_config
-{
-    size_t pool_size = 8;
-    size_t init_size = 8;
-    when_exhausted_action when_exhausted = when_exhausted_action::kWait;
-    unsigned max_wait_millis = 1000;
-    unsigned max_idle_millis = 60 * 1000;
-    unsigned health_check_retry_times = 3;
-    unsigned health_check_millis = 30 * 1000;
-    bool health_check_on_borrow = false;
-};
 
 template<typename OBJ>
 class pool : private asio::noncopyable
@@ -38,7 +25,7 @@ public:
         config_(config),
         last_check_idle_(steady_clock::now())
     {
-        for (size_t i = 0; i < config_.init_size; i++)
+        for (size_t i = 0; i < config_.init_size(); i++)
         {
             pool_.emplace_back(create_object());
         }
@@ -64,7 +51,7 @@ protected:
 
     void check_idle_time()
     {
-        auto millis = static_cast<long long>(config_.max_idle_millis);
+        auto millis = config_.max_idle_time();
         if (millis == 0)
             return;
         if (duration_millis(last_check_idle_) > millis)
@@ -110,14 +97,14 @@ protected:
                 return slot.get_ptr();
             }
         }
-        if (pool_.size() < config_.pool_size ||
-            (config_.when_exhausted == when_exhausted_action::kCreate))
+        if (pool_.size() < config_.pool_size() ||
+            (config_.exhausted_action() == when_pool_exhausted::kCreate))
         {
             auto pobj = create_object();
             pool_.emplace_back(pobj);
             return pobj;
         }
-        if (config_.when_exhausted == when_exhausted_action::kThrow)
+        if (config_.exhausted_action() == when_pool_exhausted::kThrow)
         {
             return nullptr;
         }
@@ -126,10 +113,10 @@ protected:
     pointer borrow_object()
     {
         pointer pobj = nullptr;
-        if (config_.when_exhausted == when_exhausted_action::kWait)
+        if (config_.exhausted_action() == when_pool_exhausted::kWait)
         {
             auto wait_start = steady_clock::now();
-            auto millis = static_cast<long long>(config_.max_wait_millis);
+            auto millis = config_.max_wait_time();
             do
             {
                 pobj = get_one();
@@ -149,15 +136,14 @@ protected:
         }
         else
         {
-            if (config_.health_check_on_borrow)
+            if (config_.health_check_on_borrow())
             {
-                unsigned retry_times = 0;
+                unsigned retries = 0;
                 do
                 {
                     if (pobj->check_health())
                         break;
-                    ++retry_times;
-                } while (retry_times < config_.health_check_retry_times);
+                } while (retries++ < config_.health_check_retry());
             }
             else
             {

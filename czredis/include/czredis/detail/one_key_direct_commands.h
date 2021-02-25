@@ -25,7 +25,7 @@ public:
     }
 
     czint geoadd(cref_string key,
-        std::map<czstring, geo_coordinate> members_coordinates) override final
+        hmap<czstring, geo_coordinate> members_coordinates) override final
     {
         auto& c = use_client(key);
         c.geoadd(key, members_coordinates);
@@ -168,7 +168,7 @@ public:
     }
 
     czstring hmset(cref_string key,
-        cref_string_map fields_values) override final
+        cref_string_hmap fields_values) override final
     {
         auto& c = use_client(key);
         c.hmset(key, fields_values);
@@ -396,10 +396,11 @@ public:
     reply blpop(cref_string key, czint timeout) override final
     {
         auto& c = use_client(key);
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.blpop(key, timeout);
         return c.get_reply_as<reply>();
     }
@@ -407,10 +408,11 @@ public:
     reply brpop(cref_string key, czint timeout) override final
     {
         auto& c = use_client(key);
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.brpop(key, timeout);
         return c.get_reply_as<reply>();
     }
@@ -600,10 +602,11 @@ public:
     reply bzpopmax(cref_string key, czint timeout) override final
     {
         auto& c = use_client(key);
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.bzpopmax(key, timeout);
         return c.get_reply_as<reply>();
     }
@@ -611,17 +614,18 @@ public:
     reply bzpopmin(cref_string key, czint timeout) override final
     {
         auto& c = use_client(key);
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        c.set_read_timeout(0);
         c.bzpopmin(key, timeout);
         return c.get_reply_as<reply>();
     }
 
     reply zadd(cref_string key,
         const zadd_param& param,
-        cref_string_map members_scores) override final
+        cref_string_hmap members_scores) override final
     {
         auto& c = use_client(key);
         c.zadd(key, param, members_scores);
@@ -852,7 +856,7 @@ public:
 
     stream_id xadd(cref_string key,
         const xadd_param param, cref_string id,
-        cref_string_map fields_values) override final
+        cref_string_hmap fields_values) override final
     {
         auto& c = use_client(key);
         c.xadd(key, param, id, fields_values);
@@ -985,11 +989,12 @@ public:
         cref_string key, cref_stream_id id) override final
     {
         auto& c = use_client(key);
-        if (param.is_block())
-            c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        if (param.is_block())
+            c.set_read_timeout(0);
         c.xread(param, key, id);
         return c.get_reply_as<std::pair<czstring, stream_entries>>();
     }
@@ -999,11 +1004,12 @@ public:
         cref_string key, cref_stream_id id) override final
     {
         auto& c = use_client(key);
-        if (param.is_block())
-            c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        if (param.is_block())
+            c.set_read_timeout(0);
         c.xreadgroup(group, consumer, param, noack, key, id);
         return c.get_reply_as<std::pair<czstring, stream_entries>>();
     }

@@ -141,6 +141,18 @@
     <ClInclude Include="include\czredis\detail\one_key_direct_commands.h">
       <Filter>include\czredis\detail</Filter>
     </ClInclude>
+    <ClInclude Include="include\czredis\redis_config.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\redis_pool_config.h">
+      <Filter>include\czredis</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\client_config.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\pool_config.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test\main.cpp">

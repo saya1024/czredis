@@ -133,7 +133,7 @@ public:
 };
 
 using reply_array = std::vector<reply>;
-using reply_map = std::map<czstring, reply>;
+using reply_hmap = hmap<czstring, reply>;
 
 } // namespace czredis
 

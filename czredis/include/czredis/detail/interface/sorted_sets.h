@@ -11,7 +11,7 @@ struct i_sorted_sets
     virtual void bzpopmax(cref_string_array keys, czint timeout) = 0;
     virtual void bzpopmin(cref_string key, czint timeout) = 0;
     virtual void bzpopmin(cref_string_array keys, czint timeout) = 0;
-    virtual void zadd(cref_string key, const zadd_param& param, cref_string_map members_scores) = 0;
+    virtual void zadd(cref_string key, const zadd_param& param, cref_string_hmap members_scores) = 0;
     virtual void zcard(cref_string key) = 0;
     virtual void zcount(cref_string key, cref_string min, cref_string max) = 0;
     virtual void zincrby(cref_string key, cref_string increment, cref_string member) = 0;
@@ -52,7 +52,7 @@ struct i_one_key_direct_sorted_sets
 {
     virtual reply bzpopmax(cref_string key, czint timeout) = 0;
     virtual reply bzpopmin(cref_string key, czint timeout) = 0;
-    virtual reply zadd(cref_string key, const zadd_param& param, cref_string_map members_scores) = 0;
+    virtual reply zadd(cref_string key, const zadd_param& param, cref_string_hmap members_scores) = 0;
     virtual czint zcard(cref_string key) = 0;
     virtual czint zcount(cref_string key, cref_string min, cref_string max) = 0;
     virtual czstring zincrby(cref_string key, cref_string increment, cref_string member) = 0;
@@ -100,7 +100,7 @@ struct i_one_key_delay_sorted_sets
 {
     virtual delay<reply> bzpopmax(cref_string key, czint timeout) = 0;
     virtual delay<reply> bzpopmin(cref_string key, czint timeout) = 0;
-    virtual delay<reply> zadd(cref_string key, const zadd_param& param, cref_string_map members_scores) = 0;
+    virtual delay<reply> zadd(cref_string key, const zadd_param& param, cref_string_hmap members_scores) = 0;
     virtual delay<czint> zcard(cref_string key) = 0;
     virtual delay<czint> zcount(cref_string key, cref_string min, cref_string max) = 0;
     virtual delay<czstring> zincrby(cref_string key, cref_string increment, cref_string member) = 0;

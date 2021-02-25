@@ -1,15 +1,12 @@
 #pragma once
 
+#include "pipeline.h"
+#include "redis_config.h"
 #include "detail/direct_commands.h"
 #include "detail/one_key_direct_commands.h"
-#include "pipeline.h"
 
 namespace czredis
 {
-
-class redis_config : public detail::client_config
-{
-};
 
 class redis :
     public detail::direct_commands,
@@ -78,20 +75,15 @@ public:
         return pipeline(*pclient_);
     }
 
-    reply send_command(cref_string cmd, cref_string_array args)
+    reply call_command(cref_string cmd, cref_string_array args, bool block = false)
     {
         auto& c = use_client();
-        c.send_command({ cmd }, args);
-        return c.get_reply_as<reply>();
-    }
-
-    reply send_bllock_command(cref_string cmd, cref_string_array args)
-    {
-        auto& c = use_client();
-        c.set_block(true);
-        detail::call_finally func([&c]() {
-            c.set_block(false);
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
         });
+        if (block)
+            c.set_read_timeout(0);
         c.send_command({ cmd }, args);
         return c.get_reply_as<reply>();
     }

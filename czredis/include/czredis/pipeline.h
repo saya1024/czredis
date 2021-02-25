@@ -1,5 +1,6 @@
 #pragma once
 
+#include "detail/call_finally.h"
 #include "detail/delay_commands.h"
 #include "detail/one_key_delay_commands.h"
 
@@ -34,14 +35,28 @@ private:
 
 public:
 
-    void sync()
+    void sync(bool block = false)
     {
-        build_all_delay(use_client().get_all_reply());
+        auto& c = use_client();
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
+        });
+        if (block)
+            c.set_read_timeout(0);
+        build_all_delay(c.get_all_reply());
     }
 
-    reply_array sync_get_raw_replys()
+    reply_array sync_raw_results(bool block = false)
     {
-        return use_client().get_all_reply();
+        auto& c = use_client();
+        auto read_timeout = c.read_timeout();
+        detail::call_finally func([&c, read_timeout]() {
+            c.set_read_timeout(read_timeout);
+        });
+        if (block)
+            c.set_read_timeout(0);
+        return c.get_all_reply();
     }
 };
 

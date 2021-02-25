@@ -24,8 +24,8 @@ struct i_strings
     virtual void incrby(cref_string key, czint increment) = 0;
     virtual void incrbyfloat(cref_string key, double increment) = 0;
     virtual void mget(cref_string_array keys) = 0;
-    virtual void mset(cref_string_map keys_valus) = 0;
-    virtual void msetnx(cref_string_map keys_valus) = 0;
+    virtual void mset(cref_string_hmap keys_valus) = 0;
+    virtual void msetnx(cref_string_hmap keys_valus) = 0;
     virtual void psetex(cref_string key, czint milliseconds, cref_string value) = 0;
     virtual void set(cref_string key, cref_string value, const set_param& param) = 0;
     virtual void setbit(cref_string key, czint offset, czbit bit) = 0;
@@ -65,8 +65,8 @@ struct i_direct_strings
 {
     virtual czint bitop(bit_operation operation, cref_string destkey, cref_string_array keys) = 0;
     virtual reply_array mget(cref_string_array keys) = 0;
-    virtual czstring mset(cref_string_map keys_valus) = 0;
-    virtual czint msetnx(cref_string_map keys_valus) = 0;
+    virtual czstring mset(cref_string_hmap keys_valus) = 0;
+    virtual czint msetnx(cref_string_hmap keys_valus) = 0;
 };
 
 struct i_one_key_delay_strings
@@ -99,8 +99,8 @@ struct i_delay_strings
 {
     virtual delay<czint> bitop(bit_operation operation, cref_string destkey, cref_string_array keys) = 0;
     virtual delay<reply_array> mget(cref_string_array keys) = 0;
-    virtual delay<czstring> mset(cref_string_map keys_valus) = 0;
-    virtual delay<czint> msetnx(cref_string_map keys_valus) = 0;
+    virtual delay<czstring> mset(cref_string_hmap keys_valus) = 0;
+    virtual delay<czint> msetnx(cref_string_hmap keys_valus) = 0;
 };
 
 } // namespace detail

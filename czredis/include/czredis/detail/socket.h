@@ -12,11 +12,10 @@ class socket : public pool_object
 {
     asio::io_context io_context_;
     std::unique_ptr<tcp::socket> socket_;
-    unsigned connect_timeout_ = 0;
-    unsigned read_timeout_ = 0;
-    unsigned write_timeout_ = 0;
+    long long connect_timeout_ = 0;
+    long long read_timeout_ = 0;
+    long long write_timeout_ = 0;
     bool is_connected_ = false;
-    bool blocking_ = false;
 
 public:
     socket() : io_context_(1)
@@ -43,7 +42,10 @@ public:
                     ec = result_error;
                 });
                 if (!run(connect_timeout_))
+                {
+                    disconnect();
                     throw redis_connection_error("connect timeout");
+                }
                 throw_error(ec);
             }
             else
@@ -62,6 +64,7 @@ public:
             asio::error_code ignore_ec;
             socket_->shutdown(tcp::socket::shutdown_both, ignore_ec);
             socket_->close(ignore_ec);
+            socket_ = nullptr;
             is_connected_ = false;
         }
     }
@@ -77,7 +80,7 @@ public:
             throw redis_connection_error("not connected");
 
         size_t ret = 0;
-        if (write_timeout_ > 0 && !blocking_)
+        if (write_timeout_ > 0)
         {
             asio::error_code ec;
             asio::async_write(*socket_, asio::buffer(buf, buf_size),
@@ -104,7 +107,7 @@ public:
             throw redis_connection_error("not connected");
 
         size_t ret = 0;
-        if (read_timeout_ > 0 && !blocking_)
+        if (read_timeout_ > 0)
         {
             asio::error_code ec;
             asio::async_read(*socket_, asio::dynamic_buffer(buf),
@@ -134,7 +137,7 @@ public:
             throw redis_connection_error("not connected");
 
         size_t ret = 0;
-        if (read_timeout_ > 0 && !blocking_)
+        if (read_timeout_ > 0)
         {
             asio::error_code ec;
             socket_->async_read_some(asio::buffer(buf, buf_size),
@@ -161,34 +164,43 @@ public:
         return is_connected_;
     }
 
-    void set_connect_timeout(unsigned millis) noexcept
+    long long connect_timeout() const noexcept
+    {
+        return connect_timeout_;
+    }
+
+    void set_connect_timeout(long long millis) noexcept
     {
         connect_timeout_ = millis;
     }
 
-    void set_read_timeout(unsigned millis) noexcept
+    long long read_timeout() const noexcept
+    {
+        return read_timeout_;
+    }
+
+    void set_read_timeout(long long millis) noexcept
     {
         read_timeout_ = millis;
     }
 
-    void set_write_timeout(unsigned millis) noexcept
+    long long write_timeout() const noexcept
+    {
+        return write_timeout_;
+    }
+
+    void set_write_timeout(long long millis) noexcept
     {
         write_timeout_ = millis;
     }
 
-    void set_block(bool blocking) noexcept
-    {
-        blocking_ = blocking;
-    }
-
 private:
-    bool run(unsigned timeout_ms)
+    bool run(long long millis)
     {
         io_context_.restart();
-        io_context_.run_for(std::chrono::milliseconds(timeout_ms));
+        io_context_.run_for(std::chrono::milliseconds(millis));
         if (!io_context_.stopped())
         {
-            disconnect();
             return false;
         }
         return true;

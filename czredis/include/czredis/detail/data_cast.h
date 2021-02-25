@@ -60,9 +60,9 @@ string_array reply_cast(reply&& raw)
 }
 
 template<>
-string_map reply_cast(reply&& raw)
+string_hmap reply_cast(reply&& raw)
 {
-    string_map smap;
+    string_hmap smap;
     auto& rarr = raw.as_array();
     auto length = rarr.size();
     for (size_t i = 0; i < length;)
@@ -88,9 +88,9 @@ std::vector<czint> reply_cast(reply&& raw)
 }
 
 template<>
-reply_map reply_cast(reply&& raw)
+reply_hmap reply_cast(reply&& raw)
 {
-    reply_map rmap;
+    reply_hmap rmap;
     auto& rarr = raw.as_array();
     auto length = rarr.size();
     for (size_t i = 0; i < length;)
@@ -130,7 +130,6 @@ stream_entries reply_cast(reply&& raw)
 template<>
 std::pair<czstring, stream_entries> reply_cast(reply&& raw)
 {
-    std::map<czstring, stream_entries> keys_entries;
     auto& rarr = raw.as_array()[0].as_array();
     return std::pair<czstring, stream_entries>(
         std::move(rarr[0].as_string()),
@@ -138,9 +137,9 @@ std::pair<czstring, stream_entries> reply_cast(reply&& raw)
 }
 
 template<>
-std::map<czstring, stream_entries> reply_cast(reply&& raw)
+hmap<czstring, stream_entries> reply_cast(reply&& raw)
 {
-    std::map<czstring, stream_entries> keys_entries;
+    hmap<czstring, stream_entries> keys_entries;
     auto& rarr = raw.as_array();
     auto length = rarr.size();
     for (size_t i = 0; i < length; i++)
@@ -155,7 +154,7 @@ std::map<czstring, stream_entries> reply_cast(reply&& raw)
 template<>
 stream_info reply_cast(reply&& raw)
 {
-    return stream_info(reply_cast<reply_map>(std::move(raw)));
+    return stream_info(reply_cast<reply_hmap>(std::move(raw)));
 }
 
 template<>
@@ -167,7 +166,7 @@ std::vector<stream_group_info> reply_cast(reply&& raw)
     arr.reserve(length);
     for (size_t i = 0; i < length; i++)
     {
-        arr.emplace_back(reply_cast<reply_map>(std::move(rarr[i])));
+        arr.emplace_back(reply_cast<reply_hmap>(std::move(rarr[i])));
     }
     return arr;
 }
@@ -181,7 +180,7 @@ std::vector<stream_consumer_info> reply_cast(reply&& raw)
     arr.reserve(length);
     for (size_t i = 0; i < length; i++)
     {
-        arr.emplace_back(reply_cast<reply_map>(std::move(rarr[i])));
+        arr.emplace_back(reply_cast<reply_hmap>(std::move(rarr[i])));
     }
     return arr;
 }
@@ -208,7 +207,7 @@ std::vector<xpending_result> reply_cast(reply&& raw)
 }
 
 inline string_array
-to_string_array(cref_string_map smap, bool reverse = false)
+to_string_array(cref_string_hmap smap, bool reverse = false)
 {
     string_array rarr;
     rarr.reserve(smap.size() * 2);
