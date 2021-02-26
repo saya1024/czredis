@@ -207,27 +207,6 @@ std::vector<xpending_result> reply_cast(reply&& raw)
 }
 
 inline string_array
-to_string_array(cref_string_hmap smap, bool reverse = false)
-{
-    string_array rarr;
-    rarr.reserve(smap.size() * 2);
-    for (auto& o : smap)
-    {
-        if (reverse)
-        {
-            rarr.emplace_back(o.second);
-            rarr.emplace_back(o.first);
-        }
-        else
-        {
-            rarr.emplace_back(o.first);
-            rarr.emplace_back(o.second);
-        }
-    }
-    return rarr;
-}
-
-inline string_array
 to_string_array(cref_stream_id_array ids)
 {
     string_array sarr;

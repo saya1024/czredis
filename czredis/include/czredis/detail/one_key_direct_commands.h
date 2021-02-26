@@ -168,7 +168,7 @@ public:
     }
 
     czstring hmset(cref_string key,
-        cref_string_hmap fields_values) override final
+        cref_string_array fields_values) override final
     {
         auto& c = use_client(key);
         c.hmset(key, fields_values);
@@ -625,10 +625,10 @@ public:
 
     reply zadd(cref_string key,
         const zadd_param& param,
-        cref_string_hmap members_scores) override final
+        cref_string_array scores_members) override final
     {
         auto& c = use_client(key);
-        c.zadd(key, param, members_scores);
+        c.zadd(key, param, scores_members);
         return c.get_reply_as<reply>();
     }
 
@@ -694,7 +694,8 @@ public:
     }
 
     string_array zrange(cref_string key,
-        czint start, czint stop, bool withscores) override final
+        czint start, czint stop,
+        bool withscores = false) override final
     {
         auto& c = use_client(key);
         c.zrange(key, start, stop, withscores);
@@ -720,7 +721,7 @@ public:
 
     string_array zrangebyscore(cref_string key,
         cref_string min, cref_string max,
-        bool withscores) override final
+        bool withscores = false) override final
     {
         auto& c = use_client(key);
         c.zrangebyscore(key, min, max, withscores);
@@ -777,7 +778,8 @@ public:
     }
 
     string_array zrevrange(cref_string key,
-        czint start, czint stop, bool withscores) override final
+        czint start, czint stop,
+        bool withscores = false) override final
     {
         auto& c = use_client(key);
         c.zrevrange(key, start, stop, withscores);
@@ -856,7 +858,7 @@ public:
 
     stream_id xadd(cref_string key,
         const xadd_param param, cref_string id,
-        cref_string_hmap fields_values) override final
+        cref_string_array fields_values) override final
     {
         auto& c = use_client(key);
         c.xadd(key, param, id, fields_values);
@@ -883,7 +885,8 @@ public:
     }
 
     czstring xgroup_create(cref_string key,
-        cref_string groupname, cref_string id, bool mkstream) override final
+        cref_string groupname, cref_string id,
+        bool mkstream = false) override final
     {
         auto& c = use_client(key);
         c.xgroup_create(key, groupname, id, mkstream);
@@ -1165,9 +1168,17 @@ public:
         return c.get_reply_as<czstring>();
     }
 
+    czstring set(cref_string key,
+        cref_string value) override final
+    {
+        auto& c = use_client(key);
+        c.set(key, value);
+        return c.get_reply_as<czstring>();
+    }
+
     reply set(cref_string key,
         cref_string value,
-        const set_param& param = set_param()) override final
+        const set_param& param) override final
     {
         auto& c = use_client(key);
         c.set(key, value, param);

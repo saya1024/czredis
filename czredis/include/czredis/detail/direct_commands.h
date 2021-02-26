@@ -419,17 +419,17 @@ public:
         return c.get_reply_as<reply_array>();
     }
 
-    czstring mset(cref_string_hmap keys_valus) override final
+    czstring mset(cref_string_array keys_values) override final
     {
         auto& c = use_client();
-        c.mset(keys_valus);
+        c.mset(keys_values);
         return c.get_reply_as<czstring>();
     }
 
-    czint msetnx(cref_string_hmap keys_valus) override final
+    czint msetnx(cref_string_array keys_values) override final
     {
         auto& c = use_client();
-        c.msetnx(keys_valus);
+        c.msetnx(keys_values);
         return c.get_reply_as<czint>();
     }
 };

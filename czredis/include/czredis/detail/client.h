@@ -1,17 +1,18 @@
 #pragma once
 
-#include "resp.h"
 #include "client_config.h"
 #include "command.h"
-#include "interface.h"
 #include "data_cast.h"
+#include "delay_queue.h"
+#include "interface.h"
+#include "resp.h"
 
 namespace czredis
 {
 namespace detail
 {
 
-class client : public socket, public i_commands
+class client : public socket, public delay_queue, public i_commands
 {
     using my_base = socket;
 
@@ -37,7 +38,6 @@ public:
         set_read_timeout(config.socket_read_timeout());
         set_write_timeout(config.socket_write_timeout());
     }
-
 
     ~client() noexcept override
     {}
@@ -86,6 +86,7 @@ public:
                     unwatch();
                 get_all_reply();
             }
+            delay_queue_clean_state();
         }
         catch (const std::exception&)
         {
@@ -161,6 +162,17 @@ public:
         return reply_cast<T>(get_one_reply());
     }
 
+    template<typename T>
+    delay<T> make_delay()
+    {
+        return delay_queue::make_delay<T>(is_in_multi_);
+    }
+
+    void build_all_delay()
+    {
+        delay_queue::build_all_delay(get_all_reply());
+    }
+
     size_t send_count() const noexcept { return send_count_; }
 
     czstring password() const noexcept { return password_; }
@@ -187,6 +199,16 @@ public:
     bool is_in_multi() const noexcept { return is_in_multi_; }
 
     bool is_in_watch() const noexcept { return is_in_watch_; }
+
+private:
+    void err_arguments_number(bool wrong, cref_string cmd)
+    {
+        if (wrong)
+            throw redis_commmand_error(
+                "ERR wrong number of arguments for '" + cmd + "' command");
+    }
+
+public:
 
 //connection
 
@@ -236,6 +258,7 @@ public:
     void geoadd(cref_string key,
         hmap<czstring, geo_coordinate> members_coordinates) override final
     {
+        err_arguments_number(members_coordinates.empty(), command::GEOADD);
         string_array cmd_params = { command::GEOADD ,key };
         for (auto& o : members_coordinates)
         {
@@ -255,11 +278,13 @@ public:
 
     void geohash(cref_string key, cref_string_array members) override final
     {
+        err_arguments_number(members.empty(), command::GEOHASH);
         send_command({ command::GEOHASH, key }, members);
     }
 
     void geopos(cref_string key, cref_string_array members) override final
     {
+        err_arguments_number(members.empty(), command::GEOPOS);
         send_command({ command::GEOPOS, key }, members);
     }
 
@@ -302,6 +327,7 @@ public:
 
     void hdel(cref_string key, cref_string_array fields) override final
     {
+        err_arguments_number(fields.empty(), command::HDEL);
         send_command({ command::HDEL }, fields);
     }
 
@@ -346,12 +372,15 @@ public:
 
     void hmget(cref_string key, cref_string_array fields) override final
     {
+        err_arguments_number(fields.empty(), command::HMGET);
         send_command({ command::HMGET, key }, fields);
     }
 
-    void hmset(cref_string key, cref_string_hmap fields_values) override final
+    void hmset(cref_string key, cref_string_array fields_values) override final
     {
-        send_command({ command::HMSET, key }, to_string_array(fields_values));
+        err_arguments_number(fields_values.empty() ||
+            (fields_values.size() % 2 != 0), command::HMSET);
+        send_command({ command::HMSET, key }, fields_values);
     }
 
     void hscan(cref_string key, cref_string cursor,
@@ -386,6 +415,7 @@ public:
 //hyper_log_log
     void pfadd(cref_string key, cref_string_array elements) override final
     {
+        err_arguments_number(elements.empty(), command::PFADD);
         send_command({ command::PFADD, key }, elements);
     }
 
@@ -396,11 +426,13 @@ public:
 
     void pfcount(cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::PFCOUNT);
         send_command({ command::PFCOUNT }, keys);
     }
 
     void pfmerge(cref_string destkey, cref_string_array sourcekeys) override final
     {
+        err_arguments_number(sourcekeys.empty(), command::PFMERGE);
         send_command({ command::PFMERGE, destkey }, sourcekeys);
     }
 
@@ -413,6 +445,7 @@ public:
 
     void del(cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::DEL);
         send_command({ command::DEL }, keys);
     }
 
@@ -453,6 +486,7 @@ public:
         unsigned destination_db, czint timeout, const migrate_param& param,
         cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::MIGRATE);
         send_command({ {command::MIGRATE, host, port, "",
             std::to_string(destination_db), std::to_string(timeout)},
             param.to_string_array(), {keyword::KEYS}, keys });
@@ -562,6 +596,7 @@ public:
 
     void touch(cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::TOUCH);
         send_command({ command::TOUCH }, keys);
     }
 
@@ -582,6 +617,7 @@ public:
 
     void unlink(cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::UNLINK);
         send_command({ command::UNLINK }, keys);
     }
 
@@ -600,6 +636,7 @@ public:
 
     void blpop(cref_string_array keys, czint timeout) override final
     {
+        err_arguments_number(keys.empty(), command::BLPOP);
         send_command({{ command::BLPOP }, keys, { std::to_string(timeout) }});
     }
 
@@ -610,6 +647,7 @@ public:
 
     void brpop(cref_string_array keys, czint timeout) override final
     {
+        err_arguments_number(keys.empty(), command::BRPOP);
         send_command({ { command::BRPOP }, keys, { std::to_string(timeout) } });
     }
 
@@ -644,11 +682,13 @@ public:
 
     void lpush(cref_string key, cref_string_array elements) override final
     {
+        err_arguments_number(elements.empty(), command::LPUSH);
         send_command({ command::LPUSH, key }, elements);
     }
 
     void lpushx(cref_string key, cref_string_array elements) override final
     {
+        err_arguments_number(elements.empty(), command::LPUSHX);
         send_command({ command::LPUSHX, key }, elements);
     }
 
@@ -686,11 +726,13 @@ public:
 
     void rpush(cref_string key, cref_string_array elements) override final
     {
+        err_arguments_number(elements.empty(), command::RPUSH);
         send_command({ command::RPUSH, key }, elements);
     }
 
     void rpushx(cref_string key, cref_string_array elements) override final
     {
+        err_arguments_number(elements.empty(), command::RPUSHX);
         send_command({ command::RPUSHX, key }, elements);
     }
 
@@ -739,6 +781,7 @@ public:
 
     void sadd(cref_string key, cref_string_array members) override final
     {
+        err_arguments_number(members.empty(), command::SADD);
         send_command({ command::SADD, key }, members);
     }
 
@@ -749,21 +792,25 @@ public:
 
     void sdiff(cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::SDIFF);
         send_command({ command::SDIFF }, keys);
     }
 
     void sdiffstore(cref_string destination, cref_string_array keys) override final
     {
-        send_command({ command::SADD, destination }, keys);
+        err_arguments_number(keys.empty(), command::SDIFFSTORE);
+        send_command({ command::SDIFFSTORE, destination }, keys);
     }
 
     void sinter(cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::SINTER);
         send_command({ command::SINTER }, keys);
     }
 
     void sinterstore(cref_string destination, cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::SINTERSTORE);
         send_command({ command::SINTERSTORE, destination }, keys);
     }
 
@@ -807,6 +854,7 @@ public:
 
     void srem(cref_string key, cref_string_array members) override final
     {
+        err_arguments_number(members.empty(), command::SREM);
         send_command({ command::SREM, key }, members);
     }
 
@@ -819,11 +867,13 @@ public:
 
     void sunion(cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::SUNION);
         send_command({ command::SUNION }, keys);
     }
 
     void sunionstore(cref_string destination, cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::SUNIONSTORE);
         send_command({ command::SUNIONSTORE, destination }, keys);
     }
 
@@ -831,12 +881,13 @@ public:
 
     void bzpopmax(cref_string key, czint timeout) override final
     {
-        send_command({ command::BZPOPMIN, key,std::to_string(timeout) });
+        send_command({ command::BZPOPMAX, key,std::to_string(timeout) });
     }
 
     void bzpopmax(cref_string_array keys, czint timeout) override final
     {
-        send_command({ {command::BZPOPMIN}, keys, {std::to_string(timeout)} });
+        err_arguments_number(keys.empty(), command::BZPOPMAX);
+        send_command({ {command::BZPOPMAX}, keys, {std::to_string(timeout)} });
     }
 
     void bzpopmin(cref_string key, czint timeout) override final
@@ -846,14 +897,17 @@ public:
 
     void bzpopmin(cref_string_array keys, czint timeout) override final
     {
+        err_arguments_number(keys.empty(), command::BZPOPMIN);
         send_command({ {command::BZPOPMIN}, keys, {std::to_string(timeout)} });
     }
 
     void zadd(cref_string key, const zadd_param& param,
-        cref_string_hmap members_scores) override final
+        cref_string_array scores_members) override final
     {
+        err_arguments_number(scores_members.empty() ||
+            (scores_members.size() % 2 != 0), command::ZADD);
         send_command({ {command::ZADD, key},
-            param.to_string_array(), to_string_array(members_scores, true) });
+            param.to_string_array(), scores_members });
     }
 
     void zcard(cref_string key) override final
@@ -875,6 +929,7 @@ public:
     void zinterstore(cref_string destination, cref_string_array keys,
         const z_param& param) override final
     {
+        err_arguments_number(keys.empty(), command::ZINTERSTORE);
         send_command({{ command::ZINTERSTORE, destination,
             std::to_string(keys.size()) }, keys, param.to_string_array()});
     }
@@ -907,7 +962,7 @@ public:
     }
 
     void zrange(cref_string key, czint start, czint stop,
-        bool withscores) override final
+        bool withscores = false) override final
     {
         string_array cmd_params = { command::ZRANGE, key,
             std::to_string(start), std::to_string(stop) };
@@ -929,7 +984,7 @@ public:
     }
 
     void zrangebyscore(cref_string key, cref_string min, cref_string max,
-        bool withscores) override final
+        bool withscores = false) override final
     {
         string_array cmd_params = { command::ZRANGEBYSCORE, key,
             min, max };
@@ -958,6 +1013,7 @@ public:
 
     void zrem(cref_string key, cref_string_array members) override final
     {
+        err_arguments_number(members.empty(), command::ZREM);
         send_command({ command::ZREM, key }, members);
     }
 
@@ -981,7 +1037,7 @@ public:
     }
 
     void zrevrange(cref_string key, czint start, czint stop,
-        bool withscores) override final
+        bool withscores = false) override final
     {
         string_array cmd_params = { command::ZREVRANGE, key,
             std::to_string(start), std::to_string(stop) };
@@ -1004,7 +1060,7 @@ public:
     }
 
     void zrevrangebyscore(cref_string key, cref_string min, cref_string max,
-        bool withscores) override final
+        bool withscores = false) override final
     {
         string_array cmd_params = { command::ZREVRANGEBYSCORE, key,
             min, max };
@@ -1046,6 +1102,7 @@ public:
     void zunionstore(cref_string destination, cref_string_array keys,
         const z_param& param) override final
     {
+        err_arguments_number(keys.empty(), command::ZUNIONSTORE);
         send_command({ { command::ZUNIONSTORE, destination,
             std::to_string(keys.size()) }, keys, param.to_string_array() });
     }
@@ -1055,21 +1112,24 @@ public:
     void xack(cref_string key, cref_string group,
         cref_stream_id_array ids) override final
     {
+        err_arguments_number(ids.empty(), command::XACK);
         send_command({ command::XACK, key, group },
             to_string_array(ids));
     }
 
     void xadd(cref_string key, const xadd_param param,
-        cref_string id, cref_string_hmap fields_values) override final
+        cref_string id, cref_string_array fields_values) override final
     {
+        err_arguments_number(fields_values.empty(), command::XADD);
         send_command({ {command::XADD, key}, param.to_string_array(),
-            {id}, to_string_array(fields_values) });
+            {id}, fields_values });
     }
 
     void xclaim(cref_string key, cref_string group, cref_string consumer,
         czint min_idle_time, cref_stream_id_array ids,
         const xclaim_param& param) override final
     {
+        err_arguments_number(ids.empty(), command::XCLAIM);
         send_command({ {command::XCLAIM, key, group, consumer,
             std::to_string(min_idle_time)},
             to_string_array(ids), param.to_string_array() });
@@ -1077,12 +1137,13 @@ public:
 
     void xdel(cref_string key, cref_stream_id_array ids) override final
     {
+        err_arguments_number(ids.empty(), command::XDEL);
         send_command({ command::XDEL, key },
             to_string_array(ids));
     }
 
     void xgroup_create(cref_string key, cref_string groupname,
-        cref_string id, bool mkstream) override final
+        cref_string id, bool mkstream = false) override final
     {
         string_array cmd_params = { command::XGROUP, keyword::CREATE,
             key, groupname, id };
@@ -1185,6 +1246,8 @@ public:
     void xread(const xread_param& param, cref_string_array keys,
         cref_stream_id_array ids) override final
     {
+        err_arguments_number(keys.empty() ||
+            (keys.size() != ids.size()), command::XREAD);
         string_array param_array;
         param.append_params(param_array);
         param_array.emplace_back(keyword::STREAMS);
@@ -1209,6 +1272,8 @@ public:
         const xread_param& param, bool noack, cref_string_array keys,
         cref_stream_id_array ids) override final
     {
+        err_arguments_number(keys.empty() ||
+            (keys.size() != ids.size()), command::XREADGROUP);
         string_array param_array;
         param.append_params(param_array);
         if (noack)
@@ -1262,17 +1327,20 @@ public:
 
     void bitfield(cref_string key, cref_string_array arguments) override final
     {
+        err_arguments_number(arguments.empty(), command::BITFIELD);
         send_command({ command::BITFIELD, key }, arguments);
     }
 
     void bitfield_RO(cref_string key, cref_string_array arguments) override final
     {
+        err_arguments_number(arguments.empty(), command::BITFIELD_RO);
         send_command({ command::BITFIELD_RO, key }, arguments);
     }
 
     void bitop(bit_operation operation, cref_string destkey,
         cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::BITOP);
         send_command({ command::BITOP, bit_operation_dict.at(operation),
             destkey }, keys);
     }
@@ -1300,6 +1368,8 @@ public:
 
     void getbit(cref_string key, czint offset) override final
     {
+        if (offset < 0)
+            throw redis_commmand_error("ERR bit offset is not an integer or out of range");
         send_command({ command::GETBIT, key, std::to_string(offset) });
     }
 
@@ -1331,19 +1401,22 @@ public:
 
     void mget(cref_string_array keys) override final
     {
+        err_arguments_number(keys.empty(), command::MGET);
         send_command({ command::MGET }, keys);
     }
 
-    void mset(cref_string_hmap keys_valus) override final
+    void mset(cref_string_array keys_values) override final
     {
-        send_command({ command::MSET },
-            detail::to_string_array(keys_valus));
+        err_arguments_number(keys_values.empty() ||
+            (keys_values.size() % 2 != 0), command::MSET);
+        send_command({ command::MSET }, keys_values);
     }
 
-    void msetnx(cref_string_hmap keys_valus) override final
+    void msetnx(cref_string_array keys_values) override final
     {
-        send_command({ command::MSETNX },
-            detail::to_string_array(keys_valus));
+        err_arguments_number(keys_values.empty() ||
+            (keys_values.size() % 2 != 0), command::MSETNX);
+        send_command({ command::MSETNX }, keys_values);
     }
 
     void psetex(cref_string key, czint milliseconds, cref_string value) override final
@@ -1353,6 +1426,11 @@ public:
         send_command({ command::PSETEX, key, std::to_string(milliseconds), value });
     }
 
+    void set(cref_string key, cref_string value) override final
+    {
+        send_command({ command::SET, key, value });
+    }
+
     void set(cref_string key, cref_string value, const set_param& param) override final
     {
         send_command({ command::SET, key, value }, param.to_string_array());
@@ -1360,6 +1438,8 @@ public:
 
     void setbit(cref_string key, czint offset, czbit bit) override final
     {
+        if (offset < 0)
+            throw redis_commmand_error("ERR bit offset is not an integer or out of range");
         send_command({ command::SETBIT, key, std::to_string(offset),
             std::to_string(bit) });
     }
@@ -1429,6 +1509,7 @@ public:
     {
         if (is_in_multi())
             throw redis_commmand_error("ERR WATCH inside MULTI is not allowed");
+        err_arguments_number(keys.empty(), command::WATCH);
         send_command({ command::WATCH }, keys);
         is_in_watch_ = true;
     }

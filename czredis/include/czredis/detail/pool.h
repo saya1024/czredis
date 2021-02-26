@@ -12,7 +12,7 @@ namespace detail
 template<typename OBJ>
 class pool : private asio::noncopyable
 {
-    using pointer = std::shared_ptr<OBJ>;
+    using obj_pointer = std::shared_ptr<OBJ>;
     using lock_guard = std::lock_guard<std::mutex>;
 
     pool_config config_;
@@ -41,7 +41,7 @@ public:
 
 protected:
 
-    virtual pointer create_object() = 0;
+    virtual obj_pointer create_object() = 0;
 
     long long duration_millis(time_point time) noexcept
     {
@@ -82,7 +82,7 @@ protected:
         }
     }
 
-    pointer get_one()
+    obj_pointer get_one()
     {
         lock_guard lock(mtx_);
 
@@ -110,9 +110,9 @@ protected:
         }
     }
 
-    pointer borrow_object()
+    obj_pointer borrow_object()
     {
-        pointer pobj = nullptr;
+        obj_pointer pobj = nullptr;
         if (config_.exhausted_action() == when_pool_exhausted::kWait)
         {
             auto wait_start = steady_clock::now();

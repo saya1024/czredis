@@ -37,13 +37,13 @@ public:
 template<typename OBJ>
 class pool_object_slot : private move_only
 {
-    using pointer = std::shared_ptr<OBJ>;
+    using obj_pointer = std::shared_ptr<OBJ>;
 
-    pointer pobj_;
+    obj_pointer pobj_;
     time_point last_borrow_time_;
 
 public:
-    explicit pool_object_slot(pointer ptr) :
+    explicit pool_object_slot(obj_pointer ptr) :
         pobj_(ptr),
         last_borrow_time_(steady_clock::now())
     {}
@@ -59,12 +59,12 @@ public:
         last_borrow_time = std::move(last_borrow_time_);
     }
 
-    void set_ptr(pointer&& ptr) noexcept
+    void set_ptr(obj_pointer&& ptr) noexcept
     {
         pobj_ = std::move(ptr);
     }
 
-    pointer get_ptr() const noexcept
+    obj_pointer get_ptr() const noexcept
     {
         return pobj_;
     }

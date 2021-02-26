@@ -31,6 +31,16 @@ void testTime(F func, OBJECT ...args)
     cout << duration_cast<milliseconds>(stop - start).count() << " ms" << endl;
 }
 
+
+void assert_equal(delay<string>& d, cref_string s)
+{
+    assert(d.get() == s);
+}
+void assert_equal(delay<reply>& d, cref_string s)
+{
+    assert(d.get().as_string() == s);
+}
+
 void testHost()
 {
     redis rds;
@@ -41,9 +51,21 @@ void testHost()
         rds.auth("123456");
         cout << rds.call_command("get", { "name" }, true).as_string() << endl;
         auto p = rds.get_pipline();
-        auto name = p.get("name");
+        p.multi();
+        auto v = p.set("name", "zhang");
+        auto name1 =p.get("name");
+        auto v2 = p.set("name", "wang");
+        auto name2 = p.get("name");
+        auto r = p.exec();
+        p.multi();
+        auto name3 = p.get("name");
+        r = p.exec();
         p.sync();
-        cout << name.get().as_string() << endl;
+        assert_equal(v, "OK");
+        assert_equal(name1, "zhang");
+        assert_equal(name2, "wang");
+        assert_equal(name3, "wang");
+        //cout << name.get().as_string() << name2.get().as_string() << endl;
         rds.disconnect();
     }
     catch (const exception& e)

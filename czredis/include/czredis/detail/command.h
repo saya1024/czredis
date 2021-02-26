@@ -196,6 +196,7 @@ cref_string WATCH       = "WATCH";
 
 namespace keyword
 {
+cref_string OK          = "OK";
 cref_string PONG        = "PONG";
 cref_string KEYS        = "KEYS";
 cref_string REFCOUNT    = "REFCOUNT";
@@ -224,6 +225,8 @@ cref_string STREAMS     = "STREAMS";
 cref_string NOACK       = "NOACK";
 cref_string MAXLEN      = "MAXLEN";
 cref_string ALMOST_EXACT = "~";
+cref_string QUEUED      = "QUEUED";
+cref_string EXECABORT   = "EXECABORT";
 } // namespace keyword
 
 } // namespace detail

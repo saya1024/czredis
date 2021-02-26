@@ -2,6 +2,7 @@
 
 #include "pipeline.h"
 #include "redis_config.h"
+#include "transaction.h"
 #include "detail/direct_commands.h"
 #include "detail/one_key_direct_commands.h"
 
@@ -72,7 +73,12 @@ public:
 
     pipeline get_pipline()
     {
-        return pipeline(*pclient_);
+        return pclient_;
+    }
+
+    transaction get_transaction()
+    {
+        return pclient_;
     }
 
     reply call_command(cref_string cmd, cref_string_array args, bool block = false)

@@ -64,6 +64,7 @@
     <ClInclude Include="include\czredis\redis_pool_config.h" />
     <ClInclude Include="include\czredis\reply.h" />
     <ClInclude Include="include\czredis\data.h" />
+    <ClInclude Include="include\czredis\transaction.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test\main.cpp" />

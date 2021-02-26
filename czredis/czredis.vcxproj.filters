@@ -117,9 +117,6 @@
     <ClInclude Include="include\czredis\detail\interface\strings.h">
       <Filter>include\czredis\detail\interface</Filter>
     </ClInclude>
-    <ClInclude Include="include\czredis\detail\interface\transactions.h">
-      <Filter>include\czredis\detail\interface</Filter>
-    </ClInclude>
     <ClInclude Include="include\czredis\detail\command.h">
       <Filter>include\czredis\detail</Filter>
     </ClInclude>
@@ -152,6 +149,12 @@
     </ClInclude>
     <ClInclude Include="include\czredis\detail\pool_config.h">
       <Filter>include\czredis\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\transactions.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\transaction.h">
+      <Filter>include\czredis</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
