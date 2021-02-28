@@ -49,7 +49,8 @@ void testHost()
     {
         rds.connect();
         rds.auth("123456");
-        cout << rds.call_command("get", { "name" }, true).as_string() << endl;
+        rds.get("name");
+        /*cout << rds.call_command("get", { "name" }, true).as_string() << endl;
         auto p = rds.get_pipline();
         p.multi();
         auto v = p.set("name", "zhang");
@@ -64,7 +65,7 @@ void testHost()
         assert_equal(v, "OK");
         assert_equal(name1, "zhang");
         assert_equal(name2, "wang");
-        assert_equal(name3, "wang");
+        assert_equal(name3, "wang");*/
         //cout << name.get().as_string() << name2.get().as_string() << endl;
         rds.disconnect();
     }

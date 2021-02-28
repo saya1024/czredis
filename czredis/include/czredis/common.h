@@ -12,6 +12,7 @@
 #include <regex>
 #include <string>
 #include <system_error>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 #include "../asio.hpp"

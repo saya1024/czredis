@@ -11,6 +11,11 @@ class stream final : private asio::noncopyable
 {
     static constexpr size_t kBufSize = 4096;
 
+    socket& socket_;
+    byte* buf_;
+    byte* begin_;
+    byte* end_;
+
 public:
     stream(socket& s) :
         socket_(s),
@@ -22,6 +27,13 @@ public:
     ~stream() noexcept
     {
         delete[] buf_;
+        buf_ = nullptr;
+    }
+
+    void reset() noexcept
+    {
+        begin_ = buf_;
+        end_ = buf_;
     }
 
     byte read_byte()
@@ -106,11 +118,6 @@ public:
     }
 
 private:
-    socket& socket_;
-    byte* buf_;
-    byte* begin_;
-    byte* end_;
-
     void ensure_fill()
     {
         if (begin_ == end_)

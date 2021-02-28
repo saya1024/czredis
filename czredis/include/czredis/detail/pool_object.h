@@ -28,16 +28,15 @@ public:
         last_response_time_ = steady_clock::now();
     }
 
-    time_point get_last_response_time() const noexcept
+    time_point last_response_time() const noexcept
     {
         return last_response_time_;
     }
 };
 
-template<typename OBJ>
 class pool_object_slot : private move_only
 {
-    using obj_pointer = std::shared_ptr<OBJ>;
+    using obj_pointer = std::shared_ptr<pool_object>;
 
     obj_pointer pobj_;
     time_point last_borrow_time_;
@@ -47,17 +46,6 @@ public:
         pobj_(ptr),
         last_borrow_time_(steady_clock::now())
     {}
-
-    pool_object_slot(pool_object_slot&& that) noexcept :
-        pobj_(std::move(that.pobj_)),
-        last_borrow_time_(std::move(last_borrow_time_))
-    {}
-
-    pool_object_slot& operator=(pool_object_slot&& that) noexcept
-    {
-        pobj_ = std::move(that.pobj_);
-        last_borrow_time = std::move(last_borrow_time_);
-    }
 
     void set_ptr(obj_pointer&& ptr) noexcept
     {
@@ -77,6 +65,11 @@ public:
     time_point last_borrow_time() const noexcept
     {
         return last_borrow_time_;
+    }
+
+    time_point last_response_time() const noexcept
+    {
+        return pobj_->last_response_time();
     }
 
     bool empty() const noexcept

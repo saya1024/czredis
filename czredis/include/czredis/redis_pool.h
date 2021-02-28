@@ -8,10 +8,10 @@
 namespace czredis
 {
 
-class redis_pool: public detail::pool<detail::client>
+class redis_pool: public detail::pool
 {
     using client = detail::client;
-    using my_base = detail::pool<client>;
+    using my_base = detail::pool;
 
     std::string  host_;
     std::string  port_;
@@ -31,14 +31,15 @@ public:
 
     redis get_redis()
     {
-        return redis(borrow_object());
+        return redis(std::static_pointer_cast<client>(borrow_object()));
     }
 
 private:
 
-    std::shared_ptr<client> create_object() override
+    std::shared_ptr<detail::pool_object> create_object() override
     {
-        return std::make_shared<client>(host_, port_, config_);
+        return std::static_pointer_cast<detail::pool_object>(
+            std::make_shared<client>(host_, port_, config_));
     }
 };
 

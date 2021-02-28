@@ -504,6 +504,21 @@ public:
         return c.make_delay<czint>();
     }
 
+//server
+
+    delay<czint> memory_usage(cref_string key) override final
+    {
+        auto& c = use_client(key);
+        c.memory_usage(key);
+        return c.make_delay<czint>();
+    }
+    delay<czint> memory_usage(cref_string key, czint samples) override final
+    {
+        auto& c = use_client(key);
+        c.memory_usage(key, samples);
+        return c.make_delay<czint>();
+    }
+
 //sets
 
     delay<czint> sadd(cref_string key,

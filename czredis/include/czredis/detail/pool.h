@@ -9,30 +9,44 @@ namespace czredis
 namespace detail
 {
 
-template<typename OBJ>
 class pool : private asio::noncopyable
 {
-    using obj_pointer = std::shared_ptr<OBJ>;
+    using obj_pointer = std::shared_ptr<pool_object>;
     using lock_guard = std::lock_guard<std::mutex>;
 
     pool_config config_;
-    time_point last_check_idle_;
+
     std::mutex mtx_;
-    std::vector<pool_object_slot<OBJ>> pool_;
+    std::vector<pool_object_slot> pool_;
+    std::thread loop_;
+    std::promise<bool> stop_loop_;
 
 public:
     pool(const pool_config& config) :
-        config_(config),
-        last_check_idle_(steady_clock::now())
+        config_(config)
     {
         for (size_t i = 0; i < config_.init_size(); i++)
         {
             pool_.emplace_back(create_object());
         }
+
+        if (config_.health_check_interval() > 0 &&
+            config_.max_idle_time() > 0)
+        {
+            loop_ = std::thread([this] {
+                thread_loop();
+            });
+        }
     }
 
     virtual ~pool() noexcept
-    {}
+    {
+        stop_loop_.set_value(true);
+        if (loop_.joinable())
+        {
+            loop_.join();
+        }
+    }
 
     size_t real_size() const noexcept
     {
@@ -49,48 +63,12 @@ protected:
             std::chrono::milliseconds>(steady_clock::now() - time).count();
     }
 
-    void check_idle_time()
-    {
-        auto millis = config_.max_idle_time();
-        if (millis == 0)
-            return;
-        if (duration_millis(last_check_idle_) > millis)
-        {
-            bool removed = false;
-            auto length = pool_.size();
-            for (size_t i = 0; i < length; i++)
-            {
-                auto& slot = pool_[i];
-                if (!slot.borrowed() && duration_millis(slot.last_borrow_time()) > millis)
-                {
-                    slot.set_ptr(nullptr);
-                    removed = true;
-                }
-            }
-            if (removed)
-            {
-                decltype(pool_) new_pool;
-                for (size_t i = 0; i < length; i++)
-                {
-                    auto& slot = pool_[i];
-                    if (!slot.empty())
-                        new_pool.emplace_back(std::move(slot));
-                }
-                pool_ = std::move(new_pool);
-            }
-            last_check_idle_ = steady_clock::now();
-        }
-    }
-
     obj_pointer get_one()
     {
         lock_guard lock(mtx_);
 
-        check_idle_time();
-        auto length = pool_.size();
-        for (size_t i = 0; i < length; i++)
+        for (auto& slot : pool_)
         {
-            auto& slot = pool_[i];
             if (slot.not_borrowed())
             {
                 slot.update_last_borrow_time();
@@ -122,7 +100,7 @@ protected:
                 pobj = get_one();
                 if (pobj != nullptr)
                     break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             } while (millis == 0 || duration_millis(wait_start) < millis);
         }
         else
@@ -138,12 +116,7 @@ protected:
         {
             if (config_.health_check_on_borrow())
             {
-                unsigned retries = 0;
-                do
-                {
-                    if (pobj->check_health())
-                        break;
-                } while (retries++ < config_.health_check_retry());
+                check_health(pobj);
             }
             else
             {
@@ -151,6 +124,77 @@ protected:
             }
         }
         return pobj;
+    }
+
+    obj_pointer get_one_for_health_check()
+    {
+        lock_guard lock(mtx_);
+
+        auto millis = config_.health_check_interval();
+        for (auto& slot : pool_)
+        {
+            if (slot.not_borrowed() &&
+                duration_millis(slot.last_response_time()) > millis)
+            {
+                return slot.get_ptr();
+            }
+        }
+    }
+
+    void check_health(obj_pointer& pobj)
+    {
+        unsigned retry = 0;
+        do
+        {
+            if (pobj->check_health())
+                break;
+        } while (retry++ < config_.health_check_retry());
+    }
+
+    void check_idle()
+    {
+        lock_guard lock(mtx_);
+
+        bool removed = false;
+        auto millis = config_.max_idle_time();
+        for (auto& slot : pool_)
+        {
+            if (slot.not_borrowed() &&
+                duration_millis(slot.last_borrow_time()) > millis)
+            {
+                slot.set_ptr(nullptr);
+                removed = true;
+            }
+        }
+        if (removed)
+        {
+            decltype(pool_) new_pool;
+            for (auto& slot : pool_)
+            {
+                if (!slot.empty())
+                    new_pool.emplace_back(std::move(slot));
+            }
+            pool_.swap(new_pool);
+        }
+    }
+
+    void thread_loop()
+    {
+        auto fstop = stop_loop_.get_future();
+        auto last_check_idle = steady_clock::now();
+        while (fstop.wait_for(std::chrono::milliseconds(100))
+            == std::future_status::timeout)
+        {
+            if (duration_millis(last_check_idle) > config_.max_idle_time())
+            {
+                last_check_idle = steady_clock::now();
+                check_idle();
+            }
+
+            auto pobj = get_one_for_health_check();
+            if (pobj != nullptr)
+                check_health(pobj);
+        }
     }
 };
 

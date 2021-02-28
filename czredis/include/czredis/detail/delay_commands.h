@@ -233,6 +233,190 @@ public:
         return c.make_delay<czstring>();
     }
 
+//server
+
+    delay<czstring> bgrewriteaof() override final
+    {
+        auto& c = use_client();
+        c.bgrewriteaof();
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> bgsave(bool schedule) override final
+    {
+        auto& c = use_client();
+        c.bgsave(schedule);
+        return c.make_delay<czstring>();
+    }
+
+    delay<string_array> config_get(cref_string parameter)
+    {
+        auto& c = use_client();
+        c.config_get(parameter);
+        return c.make_delay<string_array>();
+    }
+
+    delay<czstring> config_resetstat() override final
+    {
+        auto& c = use_client();
+        c.config_resetstat();
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> config_set(cref_string parameter, cref_string value) override final
+    {
+        auto& c = use_client();
+        c.config_set(parameter, value);
+        return c.make_delay<czstring>();
+    }
+
+    delay<czint> dbsize() override final
+    {
+        auto& c = use_client();
+        c.dbsize();
+        return c.make_delay<czint>();
+    }
+
+    delay<czstring> flushall(const flush_param& param) override final
+    {
+        auto& c = use_client();
+        c.flushall(param);
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> flushdb(const flush_param& param) override final
+    {
+        auto& c = use_client();
+        c.flushdb(param);
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> info() override final
+    {
+        auto& c = use_client();
+        c.info();
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> info(cref_string section) override final
+    {
+        auto& c = use_client();
+        c.info(section);
+        return c.make_delay<czstring>();
+    }
+
+    delay<czint> lastsave() override final
+    {
+        auto& c = use_client();
+        c.lastsave();
+        return c.make_delay<czint>();
+    }
+
+    delay<czstring> memory_doctor() override final
+    {
+        auto& c = use_client();
+        c.memory_doctor();
+        return c.make_delay<czstring>();
+    }
+
+    delay<std::vector<module_result>> module_list() override final
+    {
+        auto& c = use_client();
+        c.module_list();
+        return c.make_delay<std::vector<module_result>>();
+    }
+
+    delay<czstring> module_load(cref_string path, cref_string_array args) override final
+    {
+        auto& c = use_client();
+        c.module_load(path, args);
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> module_unload(cref_string name) override final
+    {
+        auto& c = use_client();
+        c.module_unload(name);
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> replicaof(cref_string host, cref_string port) override final
+    {
+        auto& c = use_client();
+        c.replicaof(host, port);
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> replicaof_no_one() override final
+    {
+        auto& c = use_client();
+        c.replicaof_no_one();
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> save() override final
+    {
+        auto& c = use_client();
+        c.save();
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> slaveof(cref_string host, cref_string port) override final
+    {
+        auto& c = use_client();
+        c.slaveof(host, port);
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> slaveof_no_one() override final
+    {
+        auto& c = use_client();
+        c.slaveof_no_one();
+        return c.make_delay<czstring>();
+    }
+
+    delay<std::vector<slowlog_reslut>> slowlog_get() override final
+    {
+        auto& c = use_client();
+        c.slowlog_get();
+        return c.make_delay<std::vector<slowlog_reslut>>();
+    }
+
+    delay<std::vector<slowlog_reslut>> slowlog_get(czint entries) override final
+    {
+        auto& c = use_client();
+        c.slowlog_get(entries);
+        return c.make_delay<std::vector<slowlog_reslut>>();
+    }
+
+    delay<czint> slowlog_len() override final
+    {
+        auto& c = use_client();
+        c.slowlog_len();
+        return c.make_delay<czint>();
+    }
+
+    delay<czstring> slowlog_reset() override final
+    {
+        auto& c = use_client();
+        c.slowlog_reset();
+        return c.make_delay<czstring>();
+    }
+
+    delay<czstring> swapdb(unsigned index1, unsigned index2) override final
+    {
+        auto& c = use_client();
+        c.swapdb(index1, index2);
+        return c.make_delay<czstring>();
+    }
+
+    delay<unix_time_result> time() override final
+    {
+        auto& c = use_client();
+        c.time();
+        return c.make_delay<unix_time_result>();
+    }
+
 //sets
     delay<string_array> sdiff(cref_string_array keys) override final
     {
@@ -300,16 +484,16 @@ public:
         return c.make_delay<reply>();
     }
 
-    delay<czint> zinterstore(cref_string destination,
-        cref_string_array keys, const z_param& param = z_param()) override final
+    delay<czint> zinterstore(cref_string destination, cref_string_array keys,
+        const zstore_param& param = zstore_param()) override final
     {
         auto& c = use_client();
         c.zinterstore(destination, keys, param);
         return c.make_delay<czint>();
     }
 
-    delay<czint> zunionstore(cref_string destination,
-        cref_string_array keys, const z_param& param = z_param()) override final
+    delay<czint> zunionstore(cref_string destination, cref_string_array keys,
+        const zstore_param& param = zstore_param()) override final
     {
         auto& c = use_client();
         c.zunionstore(destination, keys, param);

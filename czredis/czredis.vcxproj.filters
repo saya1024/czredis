@@ -156,6 +156,12 @@
     <ClInclude Include="include\czredis\transaction.h">
       <Filter>include\czredis</Filter>
     </ClInclude>
+    <ClInclude Include="include\czredis\detail\interface\server.h">
+      <Filter>include\czredis\detail\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="include\czredis\detail\data_cast_basic.h">
+      <Filter>include\czredis\detail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test\main.cpp">

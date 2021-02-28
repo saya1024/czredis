@@ -23,88 +23,61 @@ public:
         stream_(s)
     {}
 
-    void send_command(cref_string_array params)
+    void reset_stream() noexcept
     {
-        czstring symbol_num_crlf = kSymbolOfArray +
-            std::to_string(params.size()) + "\r\n";
-        stream_.write_string(symbol_num_crlf);
+        stream_.reset();
+    }
 
-        auto length = params.size();
-        for (size_t i = 0; i < length; i++)
+    void write_params_count(size_t count)
+    {
+        stream_.write_string(kSymbolOfArray +
+            std::to_string(count) + "\r\n");
+    }
+
+    template<typename T>
+    void write_params(T&& params)
+    {
+        for (auto& param : params)
         {
-            symbol_num_crlf = kSymbolOfBulkString +
-                std::to_string(params[i].size()) + "\r\n";
-            stream_.write_string(symbol_num_crlf);
-            stream_.write_string(params[i]);
+            stream_.write_string(kSymbolOfBulkString +
+                std::to_string(param.size()) + "\r\n");
+            stream_.write_string(param);
             stream_.write_crlf();
         }
+    }
+
+    void send_command(cref_string_array params)
+    {
+        write_params_count(params.size());
+        write_params(params);
     }
 
     void send_command(cref_string_array params1, cref_string_array params2)
     {
-        czstring symbol_num_crlf = kSymbolOfArray +
-            std::to_string(params1.size() + params2.size()) + "\r\n";
-        stream_.write_string(symbol_num_crlf);
-
-        auto length = params1.size();
-        for (size_t i = 0; i < length; i++)
-        {
-            symbol_num_crlf = kSymbolOfBulkString +
-                std::to_string(params1[i].size()) + "\r\n";
-            stream_.write_string(symbol_num_crlf);
-            stream_.write_string(params1[i]);
-            stream_.write_crlf();
-        }
-        length = params2.size();
-        for (size_t i = 0; i < length; i++)
-        {
-            symbol_num_crlf = kSymbolOfBulkString +
-                std::to_string(params2[i].size()) + "\r\n";
-            stream_.write_string(symbol_num_crlf);
-            stream_.write_string(params2[i]);
-            stream_.write_crlf();
-        }
+        write_params_count(params1.size() + params2.size());
+        write_params(params1);
+        write_params(params2);
     }
 
     void send_command(std::initializer_list<string_array> params_init_list)
     {
-        size_t num = 0;
+        size_t count = 0;
         for (auto& params : params_init_list)
         {
-            num += params.size();
+            count += params.size();
         }
-        czstring symbol_num_crlf = kSymbolOfArray +
-            std::to_string(num) + "\r\n";
-        stream_.write_string(symbol_num_crlf);
 
+        write_params_count(count);
         for (auto& params : params_init_list)
         {
-            auto length = params.size();
-            for (size_t i = 0; i < length; i++)
-            {
-                symbol_num_crlf = kSymbolOfBulkString +
-                    std::to_string(params[i].size()) + "\r\n";
-                stream_.write_string(symbol_num_crlf);
-                stream_.write_string(params[i]);
-                stream_.write_crlf();
-            }
+            write_params(params);
         }
     }
 
     void send_command(std::initializer_list<czstring> params)
     {
-        czstring symbol_num_crlf = kSymbolOfArray +
-            std::to_string(params.size()) + "\r\n";
-        stream_.write_string(symbol_num_crlf);
-
-        for (auto& param : params)
-        {
-            symbol_num_crlf = kSymbolOfBulkString +
-                std::to_string(param.size()) + "\r\n";
-            stream_.write_string(symbol_num_crlf);
-            stream_.write_string(param);
-            stream_.write_crlf();
-        }
+        write_params_count(params.size());
+        write_params(params);
     }
 
     reply get_reply()

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "reply.h"
+#include "detail/data_cast_basic.h"
 #include "detail/iterator.h"
 
 namespace czredis
@@ -91,17 +91,10 @@ struct stream_entry
     explicit stream_entry()
     {}
 
-    explicit stream_entry(const reply_array& rarr) :
-        id(rarr.front().as_string())
-    {
-        auto& fields=rarr.back().as_array();
-        auto length = fields.size();
-        for (size_t i = 0; i < length;)
-        {
-            fields_values[fields[i].as_string()] = fields[i + 1].as_string();
-            i += 2;
-        }
-    }
+    explicit stream_entry(reply_array&& rarr) :
+        id(rarr[0].as_string()),
+        fields_values(detail::reply_cast<string_hmap>(std::move(rarr[1])))
+    {}
 };
 
 class stream_entries
@@ -117,28 +110,19 @@ public:
 
     explicit stream_entries(reply_array&& rarr)
     {
-        auto length = rarr.size();
-        for (size_t i = 0; i < length; i++)
+        for (auto& r : rarr)
         {
-            auto& r = rarr[i];
             if (r.is_string())
             {
-                ids_.emplace_back(r.as_string());
+                ids_.emplace_back(std::move(r.as_string()));
                 messages_.emplace_back(string_hmap());
             }
             else if (r.is_array())
             {
-                ids_.emplace_back(r.as_array()[0].as_string());
-                string_hmap msg;
-                auto& fields = r.as_array()[1].as_array();
-                auto length_fields = fields.size();
-                for (size_t j = 0; j < length_fields;)
-                {
-                    msg[std::move(fields[j].as_string())] =
-                        std::move(fields[j + 1].as_string());
-                    j += 2;
-                }
-                messages_.emplace_back(std::move(msg));
+                auto& rarr2 = r.as_array();
+                ids_.emplace_back(rarr2[0].as_string());
+                messages_.emplace_back(
+                    detail::reply_cast<string_hmap>(std::move(rarr2[1])));
             }
         }
     }
@@ -209,8 +193,8 @@ struct stream_info
         redix_tree_nodes(rmap[kRedixTreeNodes].as_integer()),
         last_generated_id(rmap[kLastGeneratedID].as_string()),
         groups(rmap[kGroups].as_integer()),
-        first_entry(rmap[kFirstEntry].as_array()),
-        last_entry(rmap[kLastEntry].as_array())
+        first_entry(std::move(rmap[kFirstEntry].as_array())),
+        last_entry(std::move(rmap[kLastEntry].as_array()))
     {
         raw_info = std::move(rmap);
     }
@@ -304,11 +288,71 @@ struct xpending_result
         delivered_times(0)
     {}
 
-    explicit xpending_result(const reply_array& rarr) :
+    explicit xpending_result(reply_array&& rarr) :
         id(rarr[0].as_string()),
         consumer(rarr[1].as_string()),
         idle_time(rarr[2].as_integer()),
         delivered_times(rarr[3].as_integer())
+    {}
+};
+
+struct slowlog_reslut
+{
+    czint id;
+    czint timestamp;
+    czint execution_time;
+    string_array args;
+    czstring client_ip_port;
+    czstring client_name;
+
+    explicit slowlog_reslut() :
+        id(0),
+        timestamp(0),
+        execution_time(0)
+    {}
+
+    explicit slowlog_reslut(reply_array&& rarr) :
+        id(rarr[0].as_integer()),
+        timestamp(rarr[1].as_integer()),
+        execution_time(rarr[2].as_integer()),
+        args(detail::reply_cast<string_array>(std::move(rarr[3])))
+    {
+        if (rarr.size() > 4)
+        {
+            client_ip_port = rarr[4].as_string();
+            client_name = rarr[5].as_string();
+        }
+    }
+};
+
+struct module_result
+{
+    czstring name;
+    czint version;
+
+    explicit module_result() :
+        version(0)
+    {}
+
+    explicit module_result(reply_array&& rarr) :
+        name(rarr[0].as_string()),
+        version(rarr[1].as_integer())
+    {}
+};
+
+struct unix_time_result
+{
+    czint seconds;
+    czint microseconds;
+
+    explicit unix_time_result() :
+        seconds(0),
+        microseconds(0)
+    {}
+
+    explicit unix_time_result(reply_array&& rarr) :
+        seconds(std::stoll(rarr[0].as_string())),
+        microseconds(std::stoll(rarr[0].as_string()))
     {}
 };
 

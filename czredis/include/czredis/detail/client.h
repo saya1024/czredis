@@ -53,12 +53,10 @@ public:
                 auth(password_);
             if (database_ > 0)
                 select(database_);
-            auto rarr = get_all_reply();
-            auto length = rarr.size();
-            for (size_t i = 0; i < length; i++)
+            for (auto& r : get_all_reply())
             {
-                if (rarr[i].is_error())
-                    throw redis_commmand_error(rarr[i].as_error());
+                if (r.is_error())
+                    throw redis_commmand_error(r.as_error());
             }
         }
     }
@@ -86,9 +84,8 @@ public:
                     unwatch();
                 get_all_reply();
             }
-            delay_queue_clean_state();
         }
-        catch (const std::exception&)
+        catch (...)
         {
             disconnect();
         }
@@ -109,7 +106,7 @@ public:
             ping();
             return get_one_reply().as_string() == keyword::PONG;
         }
-        catch (const std::exception&)
+        catch (...)
         {
             disconnect();
             return false;
@@ -143,16 +140,26 @@ public:
     reply get_one_reply()
     {
         --send_count_;
-        return resp_.get_reply();
+        try
+        {
+            return resp_.get_reply();
+        }
+        catch (const std::exception& e)
+        {
+            resp_.reset_stream();
+            throw e;
+        }
     }
 
     reply_array get_all_reply()
     {
         reply_array arr;
+        arr.reserve(send_count_);
         while (send_count_ > 0)
         {
             arr.emplace_back(get_one_reply());
         }
+        delay_queue_clear();
         return arr;
     }
 
@@ -170,7 +177,13 @@ public:
 
     void build_all_delay()
     {
-        delay_queue::build_all_delay(get_all_reply());
+        reply_array arr;
+        arr.reserve(send_count_);
+        while (send_count_ > 0)
+        {
+            arr.emplace_back(get_one_reply());
+        }
+        delay_queue::build_all_delay(std::move(arr));
     }
 
     size_t send_count() const noexcept { return send_count_; }
@@ -777,6 +790,157 @@ public:
         send_command({ command::SCRIPT, keyword::LOAD, script });
     }
 
+//server
+
+    void bgrewriteaof() override final
+    {
+        send_command({ command::BGREWRITEAOF });
+    }
+
+    void bgsave(bool schedule) override final
+    {
+        if (schedule)
+            send_command({ command::BGSAVE, keyword::SCHEDULE });
+        else
+            send_command({ command::BGSAVE });
+    }
+
+    void config_get(cref_string parameter)
+    {
+        send_command({ command::CONFIG, keyword::GET, parameter });
+    }
+
+    void config_resetstat() override final
+    {
+        send_command({ command::CONFIG, keyword::RESETSTAT });
+    }
+
+    void config_set(cref_string parameter, cref_string value) override final
+    {
+        send_command({ command::CONFIG, keyword::SET });
+    }
+
+    void dbsize() override final
+    {
+        send_command({ command::DBSIZE });
+    }
+
+    void flushall(const flush_param& param) override final
+    {
+        send_command({ command::FLUSHALL }, param.to_string_array());
+    }
+
+    void flushdb(const flush_param& param) override final
+    {
+        send_command({ command::FLUSHDB }, param.to_string_array());
+    }
+
+    void info() override final
+    {
+        send_command({ command::INFO });
+    }
+
+    void info(cref_string section) override final
+    {
+        send_command({ command::INFO, section });
+    }
+
+    void lastsave() override final
+    {
+        send_command({ command::LASTSAVE });
+    }
+
+    void memory_doctor() override final
+    {
+        send_command({ command::MEMORY, keyword::DOCTOR });
+    }
+
+    void memory_usage(cref_string key) override final
+    {
+        send_command({ command::MEMORY, keyword::USAGE, key });
+    }
+
+    void memory_usage(cref_string key, czint samples) override final
+    {
+        send_command({ command::MEMORY, keyword::USAGE, key,
+            keyword::SAMPLES, std::to_string(samples) });
+    }
+
+    void module_list() override final
+    {
+        send_command({ command::MODULE, keyword::LIST });
+    }
+
+    void module_load(cref_string path, cref_string_array args) override final
+    {
+        send_command({ command::MODULE, keyword::LOAD });
+    }
+
+    void module_unload(cref_string name) override final
+    {
+        send_command({ command::MODULE, keyword::UNLOAD });
+    }
+
+    void replicaof(cref_string host, cref_string port) override final
+    {
+        send_command({ command::REPLICAOF, host, port });
+    }
+
+    void replicaof_no_one() override final
+    {
+        send_command({ command::REPLICAOF, keyword::NO, keyword::ONE });
+    }
+
+    void save() override final
+    {
+        send_command({ command::SAVE });
+    }
+
+    void shutdown() override final
+    {
+        send_command({ command::SHUTDOWN });
+    }
+
+    void slaveof(cref_string host, cref_string port) override final
+    {
+        send_command({ command::SLAVEOF, host, port });
+    }
+
+    void slaveof_no_one() override final
+    {
+        send_command({ command::SLAVEOF, keyword::NO, keyword::ONE });
+    }
+
+    void slowlog_get() override final
+    {
+        send_command({ command::SLOWLOG, keyword::GET });
+    }
+
+    void slowlog_get(czint entries) override final
+    {
+        send_command({ command::SLOWLOG, keyword::GET, std::to_string(entries) });
+    }
+
+    void slowlog_len() override final
+    {
+        send_command({ command::SLOWLOG, keyword::LEN });
+    }
+
+    void slowlog_reset() override final
+    {
+        send_command({ command::SLOWLOG, keyword::RESET });
+    }
+
+    void swapdb(unsigned index1, unsigned index2) override final
+    {
+        send_command({ command::SWAPDB, std::to_string(index1), std::to_string(index2) });
+    }
+
+    void time() override final
+    {
+        send_command({ command::TIME });
+    }
+
 //sets
 
     void sadd(cref_string key, cref_string_array members) override final
@@ -927,7 +1091,7 @@ public:
     }
 
     void zinterstore(cref_string destination, cref_string_array keys,
-        const z_param& param) override final
+        const zstore_param& param) override final
     {
         err_arguments_number(keys.empty(), command::ZINTERSTORE);
         send_command({{ command::ZINTERSTORE, destination,
@@ -1100,7 +1264,7 @@ public:
     }
 
     void zunionstore(cref_string destination, cref_string_array keys,
-        const z_param& param) override final
+        const zstore_param& param) override final
     {
         err_arguments_number(keys.empty(), command::ZUNIONSTORE);
         send_command({ { command::ZUNIONSTORE, destination,

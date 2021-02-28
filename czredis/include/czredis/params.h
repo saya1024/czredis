@@ -52,7 +52,7 @@ public:
         ASC.use = false;
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             WITHCOORD,
@@ -89,11 +89,43 @@ public:
         STOREDIST.value1 = key;
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             STORE,
             STOREDIST
+        );
+    }
+};
+
+class flush_param : public detail::param_templete
+{
+    detail::param0 ASYNC;
+    detail::param0 SYNC;
+
+public:
+    flush_param() :
+        ASYNC("ASYNC"),
+        SYNC("SYNC")
+    {}
+
+    void set_ASYNC()
+    {
+        ASYNC.use = true;
+        SYNC.use = false;
+    }
+
+    void set_SYNC()
+    {
+        SYNC.use = true;
+        ASYNC.use = false;
+    }
+
+    void append_params(string_array& cmd_params)
+    {
+        fill_up(cmd_params,
+            ASYNC,
+            SYNC
         );
     }
 };
@@ -121,7 +153,7 @@ public:
         COUNT.value1 = value;
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             MATCH,
@@ -164,7 +196,7 @@ public:
         AUTH.use = false;
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             COPY,
@@ -206,7 +238,7 @@ public:
         FREQ.value1 = frequency;
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             REPLACE,
@@ -269,7 +301,7 @@ public:
 
     void set_ALPHA() noexcept { ALPHA.use = true; }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             BY,
@@ -313,7 +345,7 @@ public:
 
     void set_INCR() noexcept { INCR.use = true; }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             NX,
@@ -324,13 +356,13 @@ public:
     }
 };
 
-class z_param : public detail::param_templete
+class zstore_param : public detail::param_templete
 {
     detail::param_array<double> WEIGHTS;
     detail::param1<czstring> AGGREGATE;
 
 public:
-    z_param() :
+    zstore_param() :
         WEIGHTS(""),
         AGGREGATE("")
     {}
@@ -347,7 +379,7 @@ public:
         AGGREGATE.value1 = detail::aggregate_dict.at(value);
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             WEIGHTS,
@@ -374,7 +406,7 @@ public:
         ALMOST_EXACT.use = almost_exact;
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             MAXLEN,
@@ -424,7 +456,7 @@ public:
 
     bool is_justid() const noexcept { return JUSTID.use; }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             IDLE,
@@ -461,7 +493,7 @@ public:
 
     bool is_block() const noexcept { return BLOCK.use; }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             COUNT,
@@ -494,7 +526,7 @@ public:
         end_.value1 = value;
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             start_,
@@ -586,7 +618,7 @@ public:
         GET.use = true;
     }
 
-    virtual void append_params(string_array& cmd_params) const override
+    void append_params(string_array& cmd_params) const override
     {
         fill_up(cmd_params,
             EX,

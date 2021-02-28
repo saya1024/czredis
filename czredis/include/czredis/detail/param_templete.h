@@ -95,10 +95,9 @@ public:
         {
             if (!name.empty())
                 params.emplace_back(name);
-            auto length = values.size();
-            for (size_t i = 0; i < length; i++)
+            for (auto& v : values)
             {
-                params.emplace_back(val_to_str(values[i]));
+                params.emplace_back(val_to_str(v));
             }
         }
     }
@@ -116,12 +115,11 @@ public:
     {
         if (use)
         {
-            auto length = values.size();
-            for (size_t i = 0; i < length; i++)
+            for (auto& v : values)
             {
                 if (!name.empty())
                     params.emplace_back(name);
-                params.emplace_back(val_to_str(values[i]));
+                params.emplace_back(val_to_str(v));
             }
         }
     }

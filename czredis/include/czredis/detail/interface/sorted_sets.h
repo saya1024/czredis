@@ -15,7 +15,7 @@ struct i_sorted_sets
     virtual void zcard(cref_string key) = 0;
     virtual void zcount(cref_string key, cref_string min, cref_string max) = 0;
     virtual void zincrby(cref_string key, cref_string increment, cref_string member) = 0;
-    virtual void zinterstore(cref_string destination, cref_string_array keys, const z_param& param) = 0;
+    virtual void zinterstore(cref_string destination, cref_string_array keys, const zstore_param& param) = 0;
     virtual void zlexcount(cref_string key, cref_string min, cref_string max) = 0;
     virtual void zpopmax(cref_string key) = 0;
     virtual void zpopmax(cref_string key, czint count) = 0;
@@ -45,7 +45,7 @@ struct i_sorted_sets
     virtual void zrevrank(cref_string key, cref_string member) = 0;
     virtual void zscan(cref_string key, cref_string cursor, const scan_param& param) = 0;
     virtual void zscore(cref_string key, cref_string member) = 0;
-    virtual void zunionstore(cref_string destination, cref_string_array keys, const z_param& param) = 0;
+    virtual void zunionstore(cref_string destination, cref_string_array keys, const zstore_param& param) = 0;
 };
 
 struct i_one_key_direct_sorted_sets
@@ -92,8 +92,8 @@ struct i_direct_sorted_sets
 {
     virtual reply bzpopmax(cref_string_array keys, czint timeout) = 0;
     virtual reply bzpopmin(cref_string_array keys, czint timeout) = 0;
-    virtual czint zinterstore(cref_string destination, cref_string_array keys, const z_param& param) = 0;
-    virtual czint zunionstore(cref_string destination, cref_string_array keys, const z_param& param) = 0;
+    virtual czint zinterstore(cref_string destination, cref_string_array keys, const zstore_param& param) = 0;
+    virtual czint zunionstore(cref_string destination, cref_string_array keys, const zstore_param& param) = 0;
 };
 
 struct i_one_key_delay_sorted_sets
@@ -139,8 +139,8 @@ struct i_delay_sorted_sets
 {
     virtual delay<reply> bzpopmax(cref_string_array keys, czint timeout) = 0;
     virtual delay<reply> bzpopmin(cref_string_array keys, czint timeout) = 0;
-    virtual delay<czint> zinterstore(cref_string destination, cref_string_array keys, const z_param& param) = 0;
-    virtual delay<czint> zunionstore(cref_string destination, cref_string_array keys, const z_param& param) = 0;
+    virtual delay<czint> zinterstore(cref_string destination, cref_string_array keys, const zstore_param& param) = 0;
+    virtual delay<czint> zunionstore(cref_string destination, cref_string_array keys, const zstore_param& param) = 0;
 };
 
 } // namespace detail

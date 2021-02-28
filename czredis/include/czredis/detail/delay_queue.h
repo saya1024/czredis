@@ -16,7 +16,7 @@ class delay_queue : private move_only
     bool multi_mode = false;
 
 protected:
-    void delay_queue_clean_state() noexcept
+    void delay_queue_clear() noexcept
     {
         pslots_.clear();
         pslots_multi_.clear();
@@ -26,7 +26,7 @@ protected:
     template<typename T>
     delay<T> make_delay(bool multi)
     {
-        delay<T> d;
+        delay<T> d(std::make_shared<delay_slot>());
         d.pslot_->multi = multi;
         pslots_.emplace_back(d.pslot_);
         return d;
@@ -57,7 +57,7 @@ protected:
             }
             else
             {
-                delay_queue_clean_state();
+                delay_queue_clear();
                 throw redis_data_error("build delay failed");
             }
         }
@@ -95,27 +95,25 @@ protected:
         }
         else
         {
-            delay_queue_clean_state();
+            delay_queue_clear();
             throw redis_data_error("build delay failed");
         }
     }
 
     void build_all_delay(reply_array&& rarr)
     {
-        auto length = rarr.size();
-        for (size_t i = 0; i < length; i++)
+        for (auto& r : rarr)
         {
             auto& pslot = pslots_.front();
-            auto& r = rarr[i];
             if (multi_mode)
             {
-                build_multi(pslot, rarr[i]);
+                build_multi(pslot, r);
             }
             else
             {
                 if (pslot->multi)   // multi command
                     multi_mode = true;
-                build_slot(pslot, rarr[i]);
+                build_slot(pslot, r);
             }
             pslots_.pop_front();
         }

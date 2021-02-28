@@ -263,6 +263,208 @@ public:
         return c.get_reply_as<czstring>();
     }
 
+//server
+
+    czstring bgrewriteaof() override final
+    {
+        auto& c = use_client();
+        c.bgrewriteaof();
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring bgsave(bool schedule) override final
+    {
+        auto& c = use_client();
+        c.bgsave(schedule);
+        return c.get_reply_as<czstring>();
+    }
+
+    string_array config_get(cref_string parameter)
+    {
+        auto& c = use_client();
+        c.config_get(parameter);
+        return c.get_reply_as<string_array>();
+    }
+
+    czstring config_resetstat() override final
+    {
+        auto& c = use_client();
+        c.config_resetstat();
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring config_set(cref_string parameter, cref_string value) override final
+    {
+        auto& c = use_client();
+        c.config_set(parameter, value);
+        return c.get_reply_as<czstring>();
+    }
+
+    czint dbsize() override final
+    {
+        auto& c = use_client();
+        c.dbsize();
+        return c.get_reply_as<czint>();
+    }
+
+    czstring flushall(const flush_param& param) override final
+    {
+        auto& c = use_client();
+        c.flushall(param);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring flushdb(const flush_param& param) override final
+    {
+        auto& c = use_client();
+        c.flushdb(param);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring info() override final
+    {
+        auto& c = use_client();
+        c.info();
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring info(cref_string section) override final
+    {
+        auto& c = use_client();
+        c.info(section);
+        return c.get_reply_as<czstring>();
+    }
+
+    czint lastsave() override final
+    {
+        auto& c = use_client();
+        c.lastsave();
+        return c.get_reply_as<czint>();
+    }
+
+    czstring memory_doctor() override final
+    {
+        auto& c = use_client();
+        c.memory_doctor();
+        return c.get_reply_as<czstring>();
+    }
+
+    std::vector<module_result> module_list() override final
+    {
+        auto& c = use_client();
+        c.module_list();
+        return c.get_reply_as<std::vector<module_result>>();
+    }
+
+    czstring module_load(cref_string path, cref_string_array args) override final
+    {
+        auto& c = use_client();
+        c.module_load(path, args);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring module_unload(cref_string name) override final
+    {
+        auto& c = use_client();
+        c.module_unload(name);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring replicaof(cref_string host, cref_string port) override final
+    {
+        auto& c = use_client();
+        c.replicaof(host, port);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring replicaof_no_one() override final
+    {
+        auto& c = use_client();
+        c.replicaof_no_one();
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring save() override final
+    {
+        auto& c = use_client();
+        c.save();
+        return c.get_reply_as<czstring>();
+    }
+
+    void shutdown() override final
+    {
+        auto& c = use_client();
+        c.shutdown();
+        try
+        {
+            c.get_reply_as<reply>();
+        }
+        catch (const redis_commmand_error& e)
+        {
+            throw e;
+        }
+        catch (...)
+        {
+            c.disconnect();
+        }
+    }
+
+    czstring slaveof(cref_string host, cref_string port) override final
+    {
+        auto& c = use_client();
+        c.slaveof(host, port);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring slaveof_no_one() override final
+    {
+        auto& c = use_client();
+        c.slaveof_no_one();
+        return c.get_reply_as<czstring>();
+    }
+
+    std::vector<slowlog_reslut> slowlog_get() override final
+    {
+        auto& c = use_client();
+        c.slowlog_get();
+        return c.get_reply_as<std::vector<slowlog_reslut>>();
+    }
+
+    std::vector<slowlog_reslut> slowlog_get(czint entries) override final
+    {
+        auto& c = use_client();
+        c.slowlog_get(entries);
+        return c.get_reply_as<std::vector<slowlog_reslut>>();
+    }
+
+    czint slowlog_len() override final
+    {
+        auto& c = use_client();
+        c.slowlog_len();
+        return c.get_reply_as<czint>();
+    }
+
+    czstring slowlog_reset() override final
+    {
+        auto& c = use_client();
+        c.slowlog_reset();
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring swapdb(unsigned index1, unsigned index2) override final
+    {
+        auto& c = use_client();
+        c.swapdb(index1, index2);
+        return c.get_reply_as<czstring>();
+    }
+
+    unix_time_result time() override final
+    {
+        auto& c = use_client();
+        c.time();
+        return c.get_reply_as<unix_time_result>();
+    }
+
 //sets
 
     string_array sdiff(cref_string_array keys) override final
@@ -342,7 +544,7 @@ public:
     }
 
     czint zinterstore(cref_string destination, cref_string_array keys,
-        const z_param& param = z_param()) override final
+        const zstore_param& param = zstore_param()) override final
     {
         auto& c = use_client();
         c.zinterstore(destination, keys, param);
@@ -350,7 +552,7 @@ public:
     }
 
     czint zunionstore(cref_string destination, cref_string_array keys,
-        const z_param& param = z_param()) override final
+        const zstore_param& param = zstore_param()) override final
     {
         auto& c = use_client();
         c.zunionstore(destination, keys, param);

@@ -518,6 +518,21 @@ public:
         return c.get_reply_as<czint>();
     }
 
+//server
+
+    czint memory_usage(cref_string key) override final
+    {
+        auto& c = use_client(key);
+        c.memory_usage(key);
+        return c.get_reply_as<czint>();
+    }
+    czint memory_usage(cref_string key, czint samples) override final
+    {
+        auto& c = use_client(key);
+        c.memory_usage(key, samples);
+        return c.get_reply_as<czint>();
+    }
+
 //sets
 
     czint sadd(cref_string key,

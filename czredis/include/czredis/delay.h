@@ -24,14 +24,14 @@ template<typename T>
 class delay : private detail::move_only
 {
     friend class detail::delay_queue;
-    using slot = detail::delay_slot;
+    using slot_pointer = std::shared_ptr<detail::delay_slot>;
 
-    std::shared_ptr<slot> pslot_;
+    slot_pointer pslot_;
     T data_;
 
 public:
-    explicit delay() :
-        pslot_(std::make_shared<slot>()),
+    explicit delay(slot_pointer ptr) :
+        pslot_(ptr),
         data_{}
     {}
 

@@ -25,6 +25,7 @@
     <ClInclude Include="include\czredis\detail\call_finally.h" />
     <ClInclude Include="include\czredis\detail\client.h" />
     <ClInclude Include="include\czredis\detail\client_config.h" />
+    <ClInclude Include="include\czredis\detail\data_cast_basic.h" />
     <ClInclude Include="include\czredis\detail\delay_commands.h" />
     <ClInclude Include="include\czredis\detail\delay_queue.h" />
     <ClInclude Include="include\czredis\detail\direct_commands.h" />
@@ -36,6 +37,7 @@
     <ClInclude Include="include\czredis\detail\interface\keys.h" />
     <ClInclude Include="include\czredis\detail\interface\lists.h" />
     <ClInclude Include="include\czredis\detail\interface\scripting.h" />
+    <ClInclude Include="include\czredis\detail\interface\server.h" />
     <ClInclude Include="include\czredis\detail\interface\sets.h" />
     <ClInclude Include="include\czredis\detail\interface\sorted_sets.h" />
     <ClInclude Include="include\czredis\detail\interface\streams.h" />

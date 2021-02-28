@@ -6,107 +6,14 @@ namespace czredis
 {
 namespace detail
 {
-
-template<typename T>
-T reply_cast(reply&& raw)
+namespace
 {
-    throw redis_data_error("no convert function");
-}
-
-template<>
-reply reply_cast(reply&& raw)
-{
-    if (raw.is_error())
-        throw redis_commmand_error(raw.as_error());
-    return std::move(raw);
-}
-
-template<>
-czint reply_cast(reply&& raw)
-{
-    return raw.as_integer();
-}
-
-template<>
-double reply_cast(reply&& raw)
-{
-    return std::stod(raw.as_string());
-}
-
-template<>
-czstring reply_cast(reply&& raw)
-{
-    return std::move(raw.as_string());
-}
-
-template<>
-reply_array reply_cast(reply&& raw)
-{
-    return std::move(raw.as_array());
-}
-
-template<>
-string_array reply_cast(reply&& raw)
-{
-    string_array sarr;
-    auto& rarr = raw.as_array();
-    auto length = rarr.size();
-    sarr.reserve(length);
-    for (size_t i = 0; i < length; i++)
-    {
-        sarr.emplace_back(std::move(rarr[i].as_string()));
-    }
-    return sarr;
-}
-
-template<>
-string_hmap reply_cast(reply&& raw)
-{
-    string_hmap smap;
-    auto& rarr = raw.as_array();
-    auto length = rarr.size();
-    for (size_t i = 0; i < length;)
-    {
-        smap[rarr[i].as_string()] = rarr[i + 1].as_string();
-        i += 2;
-    }
-    return smap;
-}
-
-template<>
-std::vector<czint> reply_cast(reply&& raw)
-{
-    std::vector<czint> iarr;
-    auto& rarr = raw.as_array();
-    auto length = rarr.size();
-    iarr.reserve(length);
-    for (size_t i = 0; i < length; i++)
-    {
-        iarr.emplace_back(rarr[i].as_integer());
-    }
-    return iarr;
-}
-
-template<>
-reply_hmap reply_cast(reply&& raw)
-{
-    reply_hmap rmap;
-    auto& rarr = raw.as_array();
-    auto length = rarr.size();
-    for (size_t i = 0; i < length;)
-    {
-        rmap[rarr[i].as_string()] = std::move(rarr[i + 1]);
-        i += 2;
-    }
-    return rmap;
-}
 
 template<>
 scan_result reply_cast(reply&& raw)
 {
-    scan_result sr = { std::move(raw.as_array()[0].as_string()),
+    return { std::move(raw.as_array()[0].as_string()),
         reply_cast<string_array>(std::move(raw.as_array()[1])) };
-    return sr;
 }
 
 template<>
@@ -141,11 +48,11 @@ hmap<czstring, stream_entries> reply_cast(reply&& raw)
 {
     hmap<czstring, stream_entries> keys_entries;
     auto& rarr = raw.as_array();
-    auto length = rarr.size();
-    for (size_t i = 0; i < length; i++)
+    for (auto& r : rarr)
     {
-        auto& rarr2 = rarr[i].as_array();
-        keys_entries.emplace(rarr2[0].as_string(),
+        auto& rarr2 = r.as_array();
+        keys_entries.emplace(
+            std::move(rarr2[0].as_string()),
             std::move(rarr2[1].as_array()));
     }
     return keys_entries;
@@ -162,11 +69,10 @@ std::vector<stream_group_info> reply_cast(reply&& raw)
 {
     std::vector<stream_group_info> arr;
     auto& rarr = raw.as_array();
-    auto length = rarr.size();
-    arr.reserve(length);
-    for (size_t i = 0; i < length; i++)
+    arr.reserve(rarr.size());
+    for (auto& r : rarr)
     {
-        arr.emplace_back(reply_cast<reply_hmap>(std::move(rarr[i])));
+        arr.emplace_back(reply_cast<reply_hmap>(std::move(r)));
     }
     return arr;
 }
@@ -176,11 +82,10 @@ std::vector<stream_consumer_info> reply_cast(reply&& raw)
 {
     std::vector<stream_consumer_info> arr;
     auto& rarr = raw.as_array();
-    auto length = rarr.size();
-    arr.reserve(length);
-    for (size_t i = 0; i < length; i++)
+    arr.reserve(rarr.size());
+    for (auto& r : rarr)
     {
-        arr.emplace_back(reply_cast<reply_hmap>(std::move(rarr[i])));
+        arr.emplace_back(reply_cast<reply_hmap>(std::move(r)));
     }
     return arr;
 }
@@ -197,27 +102,57 @@ std::vector<xpending_result> reply_cast(reply&& raw)
 {
     std::vector<xpending_result> xarr;
     auto& rarr = raw.as_array();
-    auto length = rarr.size();
-    xarr.reserve(length);
-    for (size_t i = 0; i < length; i++)
+    xarr.reserve(rarr.size());
+    for (auto& r : rarr)
     {
-        xarr.emplace_back(rarr[i].as_array());
+        xarr.emplace_back(std::move(r.as_array()));
     }
     return xarr;
 }
 
-inline string_array
-to_string_array(cref_stream_id_array ids)
+template<>
+std::vector<slowlog_reslut> reply_cast(reply&& raw)
 {
-    string_array sarr;
-    auto length = ids.size();
-    sarr.reserve(length);
-    for (size_t i = 0; i < length; i++)
+    std::vector<slowlog_reslut> sarr;
+    auto& rarr = raw.as_array();
+    sarr.reserve(rarr.size());
+    for (auto& r : rarr)
     {
-        sarr.emplace_back(ids[i].to_string());
+        sarr.emplace_back(std::move(r.as_array()));
     }
     return sarr;
 }
 
+template<>
+std::vector<module_result> reply_cast(reply&& raw)
+{
+    std::vector<module_result> marr;
+    auto& rarr = raw.as_array();
+    marr.reserve(rarr.size());
+    for (auto& r : rarr)
+    {
+        marr.emplace_back(std::move(r.as_array()));
+    }
+    return marr;
+}
+
+template<>
+unix_time_result reply_cast(reply&& raw)
+{
+    return unix_time_result(std::move(raw.as_array()));
+}
+
+string_array to_string_array(cref_stream_id_array ids)
+{
+    string_array sarr;
+    sarr.reserve(ids.size());
+    for (auto& id : ids)
+    {
+        sarr.emplace_back(id.to_string());
+    }
+    return sarr;
+}
+
+} // namespace anonymous
 } // namespace detail
 } // namespace czredis

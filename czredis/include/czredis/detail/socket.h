@@ -53,7 +53,6 @@ public:
                 asio::connect(*socket_, endpoints);
             }
             is_connected_ = true;
-            update_response_time();
         }
     }
 
@@ -210,7 +209,7 @@ private:
     {
         if (ec)
         {
-            throw redis_connection_error(ec);
+            throw redis_io_error(ec);
         }
     }
 };
