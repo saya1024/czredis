@@ -1,2 +1,2 @@
 # czredis
-A small C++ redis client, based on hiredis
+C++ redis client, imitate jedis, in development
