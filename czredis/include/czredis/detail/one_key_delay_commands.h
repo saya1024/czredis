@@ -25,7 +25,7 @@ public:
     }
 
     delay<czint> geoadd(cref_string key,
-        hmap<czstring, geo_coordinate> members_coordinates) override final
+        tmap<czstring, geo_coordinate> members_coordinates) override final
     {
         auto& c = use_client(key);
         c.geoadd(key, members_coordinates);
@@ -976,23 +976,23 @@ public:
         return c.make_delay<stream_entries>();
     }
 
-    delay<std::pair<czstring, stream_entries>> xread(
+    delay<tmap<czstring, stream_entries>> xread(
         const xread_param& param, cref_string key,
         cref_stream_id id) override final
     {
         auto& c = use_client(key);
         c.xread(param, key, id);
-        return c.make_delay<std::pair<czstring, stream_entries>>();
+        return c.make_delay<tmap<czstring, stream_entries>>();
     }
 
-    delay<std::pair<czstring, stream_entries>> xreadgroup(
+    delay<tmap<czstring, stream_entries>> xreadgroup(
         cref_string group, cref_string consumer,
         const xread_param& param, bool noack, cref_string key,
         cref_stream_id id) override final
     {
         auto& c = use_client(key);
         c.xreadgroup(group, consumer, param, noack, key, id);
-        return c.make_delay<std::pair<czstring, stream_entries>>();
+        return c.make_delay<tmap<czstring, stream_entries>>();
     }
 
     delay<stream_entries> xrevrange(cref_string key,

@@ -64,9 +64,9 @@ struct i_one_key_direct_streams
         cref_string start, cref_string end, czint count, cref_string consumer) = 0;
     virtual stream_entries xrange(cref_string key, cref_string start, cref_string end) = 0;
     virtual stream_entries xrange(cref_string key, cref_string start, cref_string end, czint count) = 0;
-    virtual std::pair<czstring, stream_entries> xread(const xread_param& param,
+    virtual tmap<czstring, stream_entries> xread(const xread_param& param,
         cref_string key, cref_stream_id id) = 0;
-    virtual std::pair<czstring, stream_entries> xreadgroup(cref_string group, cref_string consumer,
+    virtual tmap<czstring, stream_entries> xreadgroup(cref_string group, cref_string consumer,
         const xread_param& param, bool noack, cref_string key, cref_stream_id id) = 0;
     virtual stream_entries xrevrange(cref_string key, cref_string end, cref_string start) = 0;
     virtual stream_entries xrevrange(cref_string key, cref_string end, cref_string start, czint count) = 0;
@@ -77,9 +77,9 @@ struct i_direct_streams
 {
     virtual string_array xgroup_help() = 0;
     virtual string_array xinfo_help() = 0;
-    virtual hmap<czstring, stream_entries> xread(const xread_param& param,
+    virtual tmap<czstring, stream_entries> xread(const xread_param& param,
         cref_string_array keys, cref_stream_id_array ids) = 0;
-    virtual hmap<czstring, stream_entries> xreadgroup(cref_string group, cref_string consumer,
+    virtual tmap<czstring, stream_entries> xreadgroup(cref_string group, cref_string consumer,
         const xread_param& param, bool noack, cref_string_array keys, cref_stream_id_array ids) = 0;
 };
 
@@ -106,9 +106,9 @@ struct i_one_key_delay_streams
         cref_string start, cref_string end, czint count, cref_string consumer) = 0;
     virtual delay<stream_entries> xrange(cref_string key, cref_string start, cref_string end) = 0;
     virtual delay<stream_entries> xrange(cref_string key, cref_string start, cref_string end, czint count) = 0;
-    virtual delay<std::pair<czstring, stream_entries>> xread(const xread_param& param,
+    virtual delay<tmap<czstring, stream_entries>> xread(const xread_param& param,
         cref_string key, cref_stream_id id) = 0;
-    virtual delay<std::pair<czstring, stream_entries>> xreadgroup(cref_string group, cref_string consumer,
+    virtual delay<tmap<czstring, stream_entries>> xreadgroup(cref_string group, cref_string consumer,
         const xread_param& param, bool noack, cref_string key, cref_stream_id id) = 0;
     virtual delay<stream_entries> xrevrange(cref_string key, cref_string end, cref_string start) = 0;
     virtual delay<stream_entries> xrevrange(cref_string key, cref_string end, cref_string start, czint count) = 0;
@@ -120,9 +120,9 @@ struct i_delay_streams
 {
     virtual delay<string_array> xgroup_help() = 0;
     virtual delay<string_array> xinfo_help() = 0;
-    virtual delay<hmap<czstring, stream_entries>> xread(const xread_param& param,
+    virtual delay<tmap<czstring, stream_entries>> xread(const xread_param& param,
         cref_string_array keys, cref_stream_id_array ids) = 0;
-    virtual delay<hmap<czstring, stream_entries>> xreadgroup(cref_string group, cref_string consumer,
+    virtual delay<tmap<czstring, stream_entries>> xreadgroup(cref_string group, cref_string consumer,
         const xread_param& param, bool noack, cref_string_array keys, cref_stream_id_array ids) = 0;
 };
 

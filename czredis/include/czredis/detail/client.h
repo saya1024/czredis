@@ -144,9 +144,10 @@ public:
         {
             return resp_.get_reply();
         }
-        catch (const std::exception& e)
+        catch (const redis_io_error& e)
         {
             resp_.reset_stream();
+            disconnect();
             throw e;
         }
     }
@@ -269,7 +270,7 @@ public:
     }
 
     void geoadd(cref_string key,
-        hmap<czstring, geo_coordinate> members_coordinates) override final
+        tmap<czstring, geo_coordinate> members_coordinates) override final
     {
         err_arguments_number(members_coordinates.empty(), command::GEOADD);
         string_array cmd_params = { command::GEOADD ,key };
@@ -896,9 +897,9 @@ public:
         send_command({ command::SAVE });
     }
 
-    void shutdown() override final
+    void shutdown(const shutdown_param& param) override final
     {
-        send_command({ command::SHUTDOWN });
+        send_command({ command::SHUTDOWN }, param.to_string_array());
     }
 
     void slaveof(cref_string host, cref_string port) override final

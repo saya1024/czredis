@@ -22,7 +22,7 @@ public:
         {
             func_();
         }
-        catch (const std::exception&)
+        catch (...)
         {}
     }
 

@@ -52,6 +52,7 @@ struct i_one_key_direct_commands :
 {};
 
 struct i_direct_commands :
+    public i_direct_connection,
     public i_direct_geo,
     public i_direct_hashes,
     public i_direct_hyper_log_log,

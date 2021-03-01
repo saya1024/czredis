@@ -11,8 +11,7 @@ namespace czredis
 
 class redis :
     public detail::direct_commands,
-    public detail::one_key_direct_commands,
-    public detail::i_direct_connection
+    public detail::one_key_direct_commands
 {
     using client = detail::client;
 
@@ -92,52 +91,6 @@ public:
             c.set_read_timeout(0);
         c.send_command({ cmd }, args);
         return c.get_reply_as<reply>();
-    }
-
-//connection
-
-    czstring auth(cref_string password) override final
-    {
-        auto& c = use_client();
-        c.auth(password);
-        return c.get_reply_as<czstring>();
-    }
-
-    czstring auth(cref_string username, cref_string password) override final
-    {
-        auto& c = use_client();
-        c.auth(username, password);
-        return c.get_reply_as<czstring>();
-    }
-
-    czstring echo(cref_string message) override final
-    {
-        auto& c = use_client();
-        c.echo(message);
-        return c.get_reply_as<czstring>();
-    }
-
-    czstring ping() override final
-    {
-        auto& c = use_client();
-        c.ping();
-        return c.get_reply_as<czstring>();
-    }
-
-    czstring quit() override final
-    {
-        auto& c = use_client();
-        c.quit();
-        auto ret = c.get_reply_as<czstring>();
-        disconnect();
-        return ret;
-    }
-
-    czstring select(unsigned index) override final
-    {
-        auto& c = use_client();
-        c.select(index);
-        return c.get_reply_as<czstring>();
     }
 };
 

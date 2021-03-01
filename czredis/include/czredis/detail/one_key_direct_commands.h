@@ -25,7 +25,7 @@ public:
     }
 
     czint geoadd(cref_string key,
-        hmap<czstring, geo_coordinate> members_coordinates) override final
+        tmap<czstring, geo_coordinate> members_coordinates) override final
     {
         auto& c = use_client(key);
         c.geoadd(key, members_coordinates);
@@ -1003,7 +1003,7 @@ public:
         return c.get_reply_as<stream_entries>();
     }
 
-    std::pair<czstring, stream_entries> xread(const xread_param& param,
+    tmap<czstring, stream_entries> xread(const xread_param& param,
         cref_string key, cref_stream_id id) override final
     {
         auto& c = use_client(key);
@@ -1014,10 +1014,10 @@ public:
         if (param.is_block())
             c.set_read_timeout(0);
         c.xread(param, key, id);
-        return c.get_reply_as<std::pair<czstring, stream_entries>>();
+        return c.get_reply_as<tmap<czstring, stream_entries>>();
     }
 
-    std::pair<czstring, stream_entries> xreadgroup(cref_string group,
+    tmap<czstring, stream_entries> xreadgroup(cref_string group,
         cref_string consumer, const xread_param& param, bool noack,
         cref_string key, cref_stream_id id) override final
     {
@@ -1029,7 +1029,7 @@ public:
         if (param.is_block())
             c.set_read_timeout(0);
         c.xreadgroup(group, consumer, param, noack, key, id);
-        return c.get_reply_as<std::pair<czstring, stream_entries>>();
+        return c.get_reply_as<tmap<czstring, stream_entries>>();
     }
 
     stream_entries xrevrange(cref_string key,

@@ -27,7 +27,7 @@ struct i_server
     virtual void replicaof(cref_string host, cref_string port) = 0;
     virtual void replicaof_no_one() = 0;
     virtual void save() = 0;
-    virtual void shutdown() = 0;
+    virtual void shutdown(const shutdown_param& param) = 0;
     virtual void slaveof(cref_string host, cref_string port) = 0;
     virtual void slaveof_no_one() = 0;
     virtual void slowlog_get() = 0;
@@ -64,7 +64,7 @@ struct i_direct_server
     virtual czstring replicaof(cref_string host, cref_string port) = 0;
     virtual czstring replicaof_no_one() = 0;
     virtual czstring save() = 0;
-    virtual void shutdown() = 0;
+    virtual void shutdown(const shutdown_param& param) = 0;
     virtual czstring slaveof(cref_string host, cref_string port) = 0;
     virtual czstring slaveof_no_one() = 0;
     virtual std::vector<slowlog_reslut> slowlog_get() = 0;

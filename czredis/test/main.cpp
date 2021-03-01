@@ -43,13 +43,15 @@ void assert_equal(delay<reply>& d, cref_string s)
 
 void testHost()
 {
-    redis rds;
+    //redis rds;
+    redis rds("192.168.80.128", "6380");
 
     try
     {
         rds.connect();
         rds.auth("123456");
-        rds.get("name");
+        rds.shutdown();
+        cout << rds.get("name").as_string();
         /*cout << rds.call_command("get", { "name" }, true).as_string() << endl;
         auto p = rds.get_pipline();
         p.multi();

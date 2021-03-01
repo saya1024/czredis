@@ -30,11 +30,11 @@ template<typename KEY, typename VAL>
 using hmap = std::unordered_map<KEY, VAL>;
 
 using string_array = std::vector<czstring>;
-using string_hmap = hmap<czstring, czstring>;
+using string_tmap = tmap<czstring, czstring>;
 using size_t = std::size_t;
 using cref_string = const czstring&;
 using cref_string_array = const string_array&;
-using cref_string_hmap = const string_hmap&;
+using cref_string_tmap = const string_tmap&;
 
 enum class reply_type { kNull, kInteger, kString, kArray, kError };
 enum class redis_key_type { kNone, kString, kList, kSet, kZSet, kHash, kStream };

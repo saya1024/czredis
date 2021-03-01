@@ -109,23 +109,55 @@ public:
         SYNC("SYNC")
     {}
 
-    void set_ASYNC()
+    void set_ASYNC() noexcept
     {
         ASYNC.use = true;
         SYNC.use = false;
     }
 
-    void set_SYNC()
+    void set_SYNC() noexcept
     {
         SYNC.use = true;
         ASYNC.use = false;
     }
 
-    void append_params(string_array& cmd_params)
+    void append_params(string_array& cmd_params) const override final
     {
         fill_up(cmd_params,
             ASYNC,
             SYNC
+        );
+    }
+};
+
+class shutdown_param : public detail::param_templete
+{
+    detail::param0 NOSAVE;
+    detail::param0 SAVE;
+    
+public:
+    shutdown_param() :
+        NOSAVE("NOSAVE"),
+        SAVE("SAVE")
+    {}
+
+    void set_NOSAVE() noexcept
+    {
+        NOSAVE.use = true;
+        SAVE.use = false;
+    }
+
+    void set_SAVE() noexcept
+    {
+        SAVE.use = true;
+        NOSAVE.use = false;
+    }
+
+    void append_params(string_array& cmd_params) const override
+    {
+        fill_up(cmd_params,
+            NOSAVE,
+            SAVE
         );
     }
 };

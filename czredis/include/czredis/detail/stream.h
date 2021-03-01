@@ -51,7 +51,7 @@ public:
         }
         catch (const std::exception&)
         {
-            throw redis_connection_error("read integer error");
+            throw redis_io_error("read integer error");
         }
     }
 
@@ -102,9 +102,9 @@ public:
     void read_crlf()
     {
         if (read_byte() != '\r')
-            throw redis_connection_error("read crlf error");
+            throw redis_io_error("read crlf error");
         if (read_byte() != '\n')
-            throw redis_connection_error("read crlf error");
+            throw redis_io_error("read crlf error");
     }
 
     void write_string(const czstring& s)

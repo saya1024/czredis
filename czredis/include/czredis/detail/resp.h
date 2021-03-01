@@ -82,7 +82,9 @@ public:
 
     reply get_reply()
     {
-        return parse();
+        auto r = parse();
+        reset_stream();
+        return r;
     }
 
 private:
@@ -102,7 +104,7 @@ private:
         case kSymbolOfArray:
             return parse_array();
         default:
-            throw redis_connection_error("unknown reply");
+            throw redis_io_error("unknown reply");
         }
     }
 
@@ -158,7 +160,7 @@ private:
     {
         auto size = static_cast<size_t>(num);
         if (static_cast<czint>(size) != num)
-            throw std::overflow_error("size of data is bigger zhan size_t");
+            throw std::overflow_error("size of data is bigger than size_t");
         return size;
     }
 };

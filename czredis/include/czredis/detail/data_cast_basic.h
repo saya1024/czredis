@@ -44,65 +44,75 @@ czstring reply_cast(reply&& raw)
 template<>
 reply_array reply_cast(reply&& raw)
 {
+    if (raw.is_null())
+        return reply_array();
     return std::move(raw.as_array());
 }
 
 template<>
 string_array reply_cast(reply&& raw)
 {
-    string_array sarr;
+    string_array result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
-    sarr.reserve(rarr.size());
+    result.reserve(rarr.size());
     for (auto& r : rarr)
     {
-        sarr.emplace_back(std::move(r.as_string()));
+        result.emplace_back(std::move(r.as_string()));
     }
-    return sarr;
+    return result;
 }
 
 template<>
-string_hmap reply_cast(reply&& raw)
+string_tmap reply_cast(reply&& raw)
 {
-    string_hmap smap;
+    string_tmap result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
     auto length = rarr.size();
     for (size_t i = 0; i < length;)
     {
-        smap.emplace(
+        result.emplace(
             std::move(rarr[i].as_string()),
             std::move(rarr[i + 1].as_string()));
         i += 2;
     }
-    return smap;
+    return result;
 }
 
 template<>
 std::vector<czint> reply_cast(reply&& raw)
 {
-    std::vector<czint> iarr;
+    std::vector<czint> result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
-    iarr.reserve(rarr.size());
+    result.reserve(rarr.size());
     for (auto& r : rarr)
     {
-        iarr.emplace_back(r.as_integer());
+        result.emplace_back(r.as_integer());
     }
-    return iarr;
+    return result;
 }
 
 template<>
-reply_hmap reply_cast(reply&& raw)
+reply_tmap reply_cast(reply&& raw)
 {
-    reply_hmap rmap;
+    reply_tmap result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
     auto length = rarr.size();
     for (size_t i = 0; i < length;)
     {
-        rmap.emplace(
+        result.emplace(
             std::move(rarr[i].as_string()),
             std::move(rarr[i + 1]));
         i += 2;
     }
-    return rmap;
+    return result;
 }
 
 } // namespace anonymous

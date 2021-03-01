@@ -58,6 +58,7 @@
     <ClInclude Include="include\czredis\detail\data_cast.h" />
     <ClInclude Include="include\czredis\error.h" />
     <ClInclude Include="include\czredis\delay.h" />
+    <ClInclude Include="include\czredis\nullable.h" />
     <ClInclude Include="include\czredis\params.h" />
     <ClInclude Include="include\czredis\pipeline.h" />
     <ClInclude Include="include\czredis\redis.h" />

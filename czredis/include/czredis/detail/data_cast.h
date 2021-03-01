@@ -31,63 +31,62 @@ stream_entry reply_cast(reply&& raw)
 template<>
 stream_entries reply_cast(reply&& raw)
 {
+    if (raw.is_null())
+        return stream_entries();
     return stream_entries(std::move(raw.as_array()));
 }
 
 template<>
-std::pair<czstring, stream_entries> reply_cast(reply&& raw)
+tmap<czstring, stream_entries> reply_cast(reply&& raw)
 {
-    auto& rarr = raw.as_array()[0].as_array();
-    return std::pair<czstring, stream_entries>(
-        std::move(rarr[0].as_string()),
-        std::move(rarr[1].as_array()));
-}
-
-template<>
-hmap<czstring, stream_entries> reply_cast(reply&& raw)
-{
-    hmap<czstring, stream_entries> keys_entries;
+    tmap<czstring, stream_entries> result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
     for (auto& r : rarr)
     {
         auto& rarr2 = r.as_array();
-        keys_entries.emplace(
+        result.emplace(
             std::move(rarr2[0].as_string()),
             std::move(rarr2[1].as_array()));
     }
-    return keys_entries;
+    return result;
 }
 
 template<>
 stream_info reply_cast(reply&& raw)
 {
-    return stream_info(reply_cast<reply_hmap>(std::move(raw)));
+    return stream_info(reply_cast<reply_tmap>(std::move(raw)));
 }
 
 template<>
 std::vector<stream_group_info> reply_cast(reply&& raw)
 {
-    std::vector<stream_group_info> arr;
+    std::vector<stream_group_info> result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
-    arr.reserve(rarr.size());
+    result.reserve(rarr.size());
     for (auto& r : rarr)
     {
-        arr.emplace_back(reply_cast<reply_hmap>(std::move(r)));
+        result.emplace_back(reply_cast<reply_tmap>(std::move(r)));
     }
-    return arr;
+    return result;
 }
 
 template<>
 std::vector<stream_consumer_info> reply_cast(reply&& raw)
 {
-    std::vector<stream_consumer_info> arr;
+    std::vector<stream_consumer_info> result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
-    arr.reserve(rarr.size());
+    result.reserve(rarr.size());
     for (auto& r : rarr)
     {
-        arr.emplace_back(reply_cast<reply_hmap>(std::move(r)));
+        result.emplace_back(reply_cast<reply_tmap>(std::move(r)));
     }
-    return arr;
+    return result;
 }
 
 template<>
@@ -100,40 +99,46 @@ xpending_overall_result reply_cast(reply&& raw)
 template<>
 std::vector<xpending_result> reply_cast(reply&& raw)
 {
-    std::vector<xpending_result> xarr;
+    std::vector<xpending_result> result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
-    xarr.reserve(rarr.size());
+    result.reserve(rarr.size());
     for (auto& r : rarr)
     {
-        xarr.emplace_back(std::move(r.as_array()));
+        result.emplace_back(std::move(r.as_array()));
     }
-    return xarr;
+    return result;
 }
 
 template<>
 std::vector<slowlog_reslut> reply_cast(reply&& raw)
 {
-    std::vector<slowlog_reslut> sarr;
+    std::vector<slowlog_reslut> result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
-    sarr.reserve(rarr.size());
+    result.reserve(rarr.size());
     for (auto& r : rarr)
     {
-        sarr.emplace_back(std::move(r.as_array()));
+        result.emplace_back(std::move(r.as_array()));
     }
-    return sarr;
+    return result;
 }
 
 template<>
 std::vector<module_result> reply_cast(reply&& raw)
 {
-    std::vector<module_result> marr;
+    std::vector<module_result> result;
+    if (raw.is_null())
+        return result;
     auto& rarr = raw.as_array();
-    marr.reserve(rarr.size());
+    result.reserve(rarr.size());
     for (auto& r : rarr)
     {
-        marr.emplace_back(std::move(r.as_array()));
+        result.emplace_back(std::move(r.as_array()));
     }
-    return marr;
+    return result;
 }
 
 template<>
@@ -144,13 +149,13 @@ unix_time_result reply_cast(reply&& raw)
 
 string_array to_string_array(cref_stream_id_array ids)
 {
-    string_array sarr;
-    sarr.reserve(ids.size());
+    string_array result;
+    result.reserve(ids.size());
     for (auto& id : ids)
     {
-        sarr.emplace_back(id.to_string());
+        result.emplace_back(id.to_string());
     }
-    return sarr;
+    return result;
 }
 
 } // namespace anonymous

@@ -14,6 +14,52 @@ class direct_commands : public i_direct_commands
 
 public:
 
+//connection
+
+    czstring auth(cref_string password) override final
+    {
+        auto& c = use_client();
+        c.auth(password);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring auth(cref_string username, cref_string password) override final
+    {
+        auto& c = use_client();
+        c.auth(username, password);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring echo(cref_string message) override final
+    {
+        auto& c = use_client();
+        c.echo(message);
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring ping() override final
+    {
+        auto& c = use_client();
+        c.ping();
+        return c.get_reply_as<czstring>();
+    }
+
+    czstring quit() override final
+    {
+        auto& c = use_client();
+        c.quit();
+        auto ret = c.get_reply_as<czstring>();
+        c.disconnect();
+        return ret;
+    }
+
+    czstring select(unsigned index) override final
+    {
+        auto& c = use_client();
+        c.select(index);
+        return c.get_reply_as<czstring>();
+    }
+
 //geo
 
     reply_array georadius(cref_string key,
@@ -272,7 +318,7 @@ public:
         return c.get_reply_as<czstring>();
     }
 
-    czstring bgsave(bool schedule) override final
+    czstring bgsave(bool schedule = false) override final
     {
         auto& c = use_client();
         c.bgsave(schedule);
@@ -307,14 +353,14 @@ public:
         return c.get_reply_as<czint>();
     }
 
-    czstring flushall(const flush_param& param) override final
+    czstring flushall(const flush_param& param = flush_param()) override final
     {
         auto& c = use_client();
         c.flushall(param);
         return c.get_reply_as<czstring>();
     }
 
-    czstring flushdb(const flush_param& param) override final
+    czstring flushdb(const flush_param& param = flush_param()) override final
     {
         auto& c = use_client();
         c.flushdb(param);
@@ -391,19 +437,15 @@ public:
         return c.get_reply_as<czstring>();
     }
 
-    void shutdown() override final
+    void shutdown(const shutdown_param& param = shutdown_param()) override final
     {
         auto& c = use_client();
-        c.shutdown();
+        c.shutdown(param);
         try
         {
             c.get_reply_as<reply>();
         }
-        catch (const redis_commmand_error& e)
-        {
-            throw e;
-        }
-        catch (...)
+        catch (const redis_io_error&)
         {
             c.disconnect();
         }
@@ -575,7 +617,7 @@ public:
         return c.get_reply_as<string_array>();
     }
 
-    hmap<czstring, stream_entries> xread(const xread_param& param,
+    tmap<czstring, stream_entries> xread(const xread_param& param,
         cref_string_array keys, cref_stream_id_array ids) override final
     {
         auto& c = use_client();
@@ -586,10 +628,10 @@ public:
         if (param.is_block())
             c.set_read_timeout(0);
         c.xread(param, keys, ids);
-        return c.get_reply_as<hmap<czstring, stream_entries>>();
+        return c.get_reply_as<tmap<czstring, stream_entries>>();
     }
 
-    hmap<czstring, stream_entries> xreadgroup(cref_string group,
+    tmap<czstring, stream_entries> xreadgroup(cref_string group,
         cref_string consumer, const xread_param& param, bool noack,
         cref_string_array keys, cref_stream_id_array ids) override final
     {
@@ -601,7 +643,7 @@ public:
         if (param.is_block())
             c.set_read_timeout(0);
         c.xreadgroup(group, consumer, param, noack, keys, ids);
-        return c.get_reply_as<hmap<czstring, stream_entries>>();
+        return c.get_reply_as<tmap<czstring, stream_entries>>();
     }
 
 //string

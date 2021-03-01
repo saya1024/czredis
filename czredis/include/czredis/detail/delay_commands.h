@@ -242,7 +242,7 @@ public:
         return c.make_delay<czstring>();
     }
 
-    delay<czstring> bgsave(bool schedule) override final
+    delay<czstring> bgsave(bool schedule = false) override final
     {
         auto& c = use_client();
         c.bgsave(schedule);
@@ -277,14 +277,14 @@ public:
         return c.make_delay<czint>();
     }
 
-    delay<czstring> flushall(const flush_param& param) override final
+    delay<czstring> flushall(const flush_param& param = flush_param()) override final
     {
         auto& c = use_client();
         c.flushall(param);
         return c.make_delay<czstring>();
     }
 
-    delay<czstring> flushdb(const flush_param& param) override final
+    delay<czstring> flushdb(const flush_param& param = flush_param()) override final
     {
         auto& c = use_client();
         c.flushdb(param);
@@ -515,22 +515,22 @@ public:
         return c.make_delay<string_array>();
     }
 
-    delay<hmap<czstring, stream_entries>> xread(const xread_param& param,
+    delay<tmap<czstring, stream_entries>> xread(const xread_param& param,
         cref_string_array keys, cref_stream_id_array ids) override final
     {
         auto& c = use_client();
         c.xread(param, keys, ids);
-        return c.make_delay<hmap<czstring, stream_entries>>();
+        return c.make_delay<tmap<czstring, stream_entries>>();
     }
 
-    delay<hmap<czstring, stream_entries>> xreadgroup(
+    delay<tmap<czstring, stream_entries>> xreadgroup(
         cref_string group, cref_string consumer,
         const xread_param& param, bool noack,
         cref_string_array keys, cref_stream_id_array ids) override final
     {
         auto& c = use_client();
         c.xreadgroup(group, consumer, param, noack, keys, ids);
-        return c.make_delay<hmap<czstring, stream_entries>>();
+        return c.make_delay<tmap<czstring, stream_entries>>();
     }
 
 //strings

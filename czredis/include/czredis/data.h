@@ -86,24 +86,24 @@ using cref_stream_id_array = const stream_id_array&;
 struct stream_entry 
 {
     stream_id id;
-    string_hmap fields_values;
+    string_tmap fields_values;
 
     explicit stream_entry()
     {}
 
     explicit stream_entry(reply_array&& rarr) :
         id(rarr[0].as_string()),
-        fields_values(detail::reply_cast<string_hmap>(std::move(rarr[1])))
+        fields_values(detail::reply_cast<string_tmap>(std::move(rarr[1])))
     {}
 };
 
 class stream_entries
 {
     stream_id_array ids_;
-    std::vector<string_hmap> messages_;
+    std::vector<string_tmap> messages_;
 
 public:
-    using iterator = detail::v2_iterator<stream_id, string_hmap>;
+    using iterator = detail::v2_iterator<stream_id, string_tmap>;
 
     explicit stream_entries()
     {}
@@ -115,37 +115,25 @@ public:
             if (r.is_string())
             {
                 ids_.emplace_back(std::move(r.as_string()));
-                messages_.emplace_back(string_hmap());
+                messages_.emplace_back(string_tmap());
             }
             else if (r.is_array())
             {
                 auto& rarr2 = r.as_array();
                 ids_.emplace_back(rarr2[0].as_string());
                 messages_.emplace_back(
-                    detail::reply_cast<string_hmap>(std::move(rarr2[1])));
+                    detail::reply_cast<string_tmap>(std::move(rarr2[1])));
             }
         }
-    }
-
-    void push_back(cref_stream_id id, cref_string_hmap message)
-    {
-        ids_.emplace_back(id);
-        messages_.emplace_back(message);
-    }
-
-    void push_back(cref_stream_id id, string_hmap&& message)
-    {
-        ids_.emplace_back(id);
-        messages_.emplace_back(message);
     }
 
     size_t size() const noexcept { return ids_.size(); }
 
     stream_id_array& get_ids() noexcept { return ids_; }
 
-    std::vector<string_hmap> get_messages() noexcept { return messages_; }
+    std::vector<string_tmap> get_messages() noexcept { return messages_; }
 
-    std::pair<stream_id&, string_hmap&> operator[](size_t i)
+    std::pair<stream_id&, string_tmap&> operator[](size_t i)
     {
         return { ids_[i], messages_[i] };
     }
@@ -178,7 +166,7 @@ struct stream_info
     czint groups;
     stream_entry first_entry;
     stream_entry last_entry;
-    reply_hmap raw_info;
+    reply_tmap raw_info;
 
     explicit stream_info() :
         length(0),
@@ -187,7 +175,7 @@ struct stream_info
         groups(0)
     {}
 
-    explicit stream_info(reply_hmap&& rmap) :
+    explicit stream_info(reply_tmap&& rmap) :
         length(rmap[kLength].as_integer()),
         redix_tree_keys(rmap[kRedixTreeKeys].as_integer()),
         redix_tree_nodes(rmap[kRedixTreeNodes].as_integer()),
@@ -211,12 +199,12 @@ struct stream_group_info
     czstring consumers;
     czstring pending;
     czstring last_delivered_id;
-    reply_hmap raw_info;
+    reply_tmap raw_info;
 
     explicit stream_group_info()
     {}
 
-    explicit stream_group_info(reply_hmap&& rmap) :
+    explicit stream_group_info(reply_tmap&& rmap) :
         name(rmap[kName].as_string()),
         consumers(rmap[kConsumers].as_string()),
         pending(rmap[kPending].as_string()),
@@ -235,12 +223,12 @@ struct stream_consumer_info
     czstring name;
     czstring idle;
     czstring pending;
-    reply_hmap raw_info;
+    reply_tmap raw_info;
 
     explicit stream_consumer_info()
     {}
 
-    explicit stream_consumer_info(reply_hmap&& rmap) :
+    explicit stream_consumer_info(reply_tmap&& rmap) :
         name(rmap[kName].as_string()),
         idle(rmap[kIdle].as_string()),
         pending(rmap[kPending].as_string())
@@ -254,7 +242,7 @@ struct xpending_overall_result
     czint total_pending_message;
     stream_id smallest_id;
     stream_id greatest_id;
-    hmap<czstring, czint> consumer_pending;
+    tmap<czstring, czint> consumer_pending;
 
     explicit xpending_overall_result() :
         total_pending_message(0)
