@@ -72,6 +72,9 @@
   <ItemGroup>
     <ClCompile Include="test\main.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README.md" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{5E293ACE-395A-4299-9540-26BA5FB86E55}</ProjectGuid>

@@ -79,10 +79,7 @@ public:
     czstring read_string_crlf(size_t read_size)
     {
         czstring s;
-        if (read_size > s.capacity())
-        {
-            s.reserve(read_size);
-        }
+        s.reserve(read_size);
         size_t buf_size = end_ - begin_;
         if (read_size > buf_size)
         {

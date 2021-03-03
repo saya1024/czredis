@@ -145,10 +145,7 @@ private:
 
         reply_array arr;
         auto size = integer_to_size(num);
-        if (arr.capacity() < size)
-        {
-            arr.reserve(size);
-        }
+        arr.reserve(size);
         for (size_t i = 0; i < size; i++)
         {
             arr.emplace_back(parse());
